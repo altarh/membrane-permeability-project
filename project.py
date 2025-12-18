@@ -25,23 +25,26 @@ Figure and data from: A Deep Learning Approach to Antimicrobial Discovery, Stoke
 
 """# Package & data loading"""
 
+import ast
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import pandas as pd
 from rdkit import Chem
 
-table_first_round_molecules   =  pd.read_excel( '/content/MLCB_2024_HW2_Data/training_table.xlsx',skiprows=1,sheet_name='S1B')
+# table_first_round_molecules   =  pd.read_excel( '/content/MLCB_2024_HW2_Data/training_table.xlsx',skiprows=1,sheet_name='S1B')
+table_first_round_molecules = pd.read_csv('CycPeptMPDB_Peptide_All.csv')
 
-table_first_round_molecules['Class_Label'] = table_first_round_molecules['Activity'].map(lambda x: 1 if x=='Active' else 0)
+table_first_round_molecules['Sequence_LogP'] = table_first_round_molecules['Sequence_LogP'].apply(ast.literal_eval)
+table_first_round_molecules['Class_Label'] = table_first_round_molecules['Sequence_LogP'].map(lambda x: np.mean(x))
+print(table_first_round_molecules['Class_Label'].iloc[0:5])
 
 print( 'Training table') # This dataset was collected in the first experimental round and will be used for training/evaluating the performance of our model.
-display(table_first_round_molecules.head())
 
 
-table_evaluation_molecules = pd.read_excel('/content/MLCB_2024_HW2_Data/DrugRepurposing_Hub_predictions.xlsx',skiprows=1,sheet_name='S2B').drop(columns=['Unnamed: 6','Broad_ID'])
-print( 'Evaluation table') # This dataset was used for screening candidates in the second experimental round. We will use it for inference only.
-display(table_evaluation_molecules.head())
+# table_evaluation_molecules = pd.read_excel('/content/MLCB_2024_HW2_Data/DrugRepurposing_Hub_predictions.xlsx',skiprows=1,sheet_name='S2B').drop(columns=['Unnamed: 6','Broad_ID'])
+# print( 'Evaluation table') # This dataset was used for screening candidates in the second experimental round. We will use it for inference only.
+# display(table_evaluation_molecules.head())
 
 """# Part 0: Parsing the data into Tabular Machine Learning format using the RDKIT package
 
