@@ -23,12 +23,13 @@ Figure and data from: A Deep Learning Approach to Antimicrobial Discovery, Stoke
 
 """# Package & data loading"""
 
-import ast
 import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 import pandas as pd
-from rdkit import Chem
+
+from scipy.sparse import csr_array
+from scipy.sparse.csgraph import connected_components
+from sklearn.model_selection import GroupShuffleSplit, StratifiedGroupKFold
 
 from data_loading import read_file_and_add_Class_Label
 from mol_properties import get_features_and_morgan_fingerprints, calculate_tanimoto_similarity
@@ -126,10 +127,6 @@ We will use the Tanimoto similarity, a custom metric for calculating similarity 
 
 
 """
-
-from scipy.sparse import csr_array
-from scipy.sparse.csgraph import connected_components
-from sklearn.model_selection import GroupShuffleSplit, StratifiedGroupKFold
 
 
 first_round_molecules_rdkit, features_first_round_molecules, first_round_molecules_morgan_fingerprints = get_features_and_morgan_fingerprints(table_first_round_molecules)
@@ -399,7 +396,7 @@ def test(loader):
      return correct / len(loader.dataset)  # Derive ratio of correct predictions.
 
 
-for epoch in range(1, 100):
+for epoch in range(1, 10):  # TODO (ASK): temp until running on GPU
     train()
     train_acc = test(train_loader)
     val_acc = test(validation_loader)
