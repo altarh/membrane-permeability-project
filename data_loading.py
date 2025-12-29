@@ -1,16 +1,15 @@
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
 import pandas as pd
-from rdkit import Chem
 import numpy as np
+import ast
 
+def read_file_and_add_Class_Label(csv_path='CycPeptMPDB_First30.csv'):
+    df = pd.read_csv(csv_path, sep=",")
+    threshold = 0.69
+    # If Permeability is greater than -6, it's 1 (Active), otherwise 0
+    df['Sequence_LogP'] = df['Sequence_LogP'].apply(ast.literal_eval)
+    df['mean_Permeability'] = df['Sequence_LogP'].map(lambda x: np.mean(x))
 
-df = pd.read_csv('CycPeptMPDB_First30.csv', sep=",")
-threshold = -6.0
-# If Permeability is greater than -6, it's 1 (Active), otherwise 0
-df['Class_Label'] = df['Permeability'].apply(lambda x: 1 if x > threshold else 0)
+    df['Class_Label'] = df['mean_Permeability'].apply(lambda x: 1 if x > threshold else 0)
+    return df
 
-# Check the results
-print(df[['Permeability', 'Class_Label']].head(30))
 
