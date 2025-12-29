@@ -32,6 +32,9 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 
+from mol_properties import get_features_and_morgan_fingerprints, calculate_tanimoto_similarity
+from mol_to_GNN import molecule_to_graph
+
 try:
     from IPython.display import display
 except ImportError:
@@ -61,147 +64,37 @@ In this section we:
 
 """
 
-from rdkit import Chem
-from rdkit.Chem import Descriptors, Lipinski, Crippen, MolSurf
-import numpy as np
-
-
-def extract_chemical_features(list_molecules):
-  def num_atoms(mol):
-    atom_counts = {
-        'Total': 0,
-        'Carbon': 0,
-        'Nitrogen': 0,
-        'Oxygen': 0,
-        'Sulfur': 0,
-        'Fluorine': 0,
-        'Phosphate':0,
-        'Chlorine':0,
-        'Other':0,
-    }
-    for atom in mol.GetAtoms():
-      atom_counts['Total'] +=1
-      atom_type = atom.GetSymbol()
-      if atom_type == 'C':
-          atom_counts['Carbon'] += 1
-      elif atom_type == 'N':
-          atom_counts['Nitrogen'] += 1
-      elif atom_type == 'O':
-          atom_counts['Oxygen'] += 1
-      elif atom_type == 'S':
-          atom_counts['Sulfur'] += 1
-      elif atom_type == 'F':
-          atom_counts['Fluorine'] += 1
-      elif atom_type == 'P':
-          atom_counts['Phosphate'] += 1
-      elif atom_type == 'Cl':
-          atom_counts['Chlorine'] += 1
-      else:
-          atom_counts['Other'] += 1
-    return atom_counts
-
-
-  def num_bonds(mol):
-    bond_counts = {
-        'Total': 0,
-        'Single': 0,
-        'Double': 0,
-        'Triple': 0,
-        'Aromatic': 0,
-    }
-    # Iterate through all bonds in the molecule
-    for bond in mol.GetBonds():
-      bond_counts['Total'] +=1
-      bond_type = bond.GetBondType()
-      if bond_type == Chem.BondType.SINGLE:
-          bond_counts['Single'] += 1
-      elif bond_type == Chem.BondType.DOUBLE:
-          bond_counts['Double'] += 1
-      elif bond_type == Chem.BondType.TRIPLE:
-          bond_counts['Triple'] += 1
-      elif bond_type == Chem.BondType.AROMATIC:
-          bond_counts['Aromatic'] += 1
-    return bond_counts
-
-
-  """
-  Extract chemical features for a list of molecules.
-
-  Parameters:
-  list_molecules (list): List of small molecules (RDKIT class instances).
-  Returns:
-  pandas.DataFrame: Table of descriptors.
-  """
-
-  # List to store results
-  results = []
-
-  # Define descriptors to compute (MOE-like)
-  descriptors = {
-      'MolWt': Descriptors.MolWt,  # Molecular weight
-      'LogP': Crippen.MolLogP,     # Octanol-water partition coefficient
-      'TPSA': MolSurf.TPSA,        # Topological polar surface area
-      'HBD': Lipinski.NumHDonors,  # Number of hydrogen bond donors
-      'HBA': Lipinski.NumHAcceptors,  # Number of hydrogen bond acceptors
-      'RotBonds': Lipinski.NumRotatableBonds,  # Number of rotatable bonds
-      'NumAromRings': Descriptors.NumAromaticRings,  # Number of aromatic rings
-      'NumHeteroatoms': Descriptors.NumHeteroatoms,  # Number of heteroatoms
-      'FractionSP3': Descriptors.FractionCSP3,  # Fraction of sp3 carbons
-      'MolarRefractivity': Crippen.MolMR,  # Molar refractivity (MOE's mr)
-      'NumAtoms': num_atoms,
-      'NumBonds': num_bonds,
-  }
-
-  all_mol_features = []
-  for molecule in list_molecules:
-    mol_features = {}
-    for desc_name, desc_func in descriptors.items():
-      results = desc_func(molecule)
-      if isinstance(results,dict):
-        for key, value in results.items():
-          mol_features[f'{desc_name}{key}'] = value
-      else:
-        mol_features[desc_name] = results
-    all_mol_features.append(mol_features)
-  return pd.DataFrame(all_mol_features)
-
-
-
-
 # SMILES is a string-based representation of molecules.
-first_round_molecules_smiles = table_first_round_molecules['SMILES']
+# first_round_molecules_smiles = table_first_round_molecules['SMILES']
 # evaluation_molecules_smiles = table_evaluation_molecules['SMILES']
 
 # We first turn each molecule into an instance of the RDKIT molecule.
-first_round_molecules_rdkit = [Chem.MolFromSmiles(smiles) for smiles in first_round_molecules_smiles]
+# first_round_molecules_rdkit = [Chem.MolFromSmiles(smiles) for smiles in first_round_molecules_smiles]
 # evaluation_molecules_rdkit = [Chem.MolFromSmiles(smiles) for smiles in evaluation_molecules_smiles]
 
 # Discard examples for which conversion failed.
-first_round_molecules_success = [i for i in range(len(first_round_molecules_rdkit)) if first_round_molecules_rdkit[i] is not None]
+# first_round_molecules_success = [i for i in range(len(first_round_molecules_rdkit)) if first_round_molecules_rdkit[i] is not None]
 # evaluation_molecules_success = [i for i in range(len(evaluation_molecules_rdkit)) if evaluation_molecules_rdkit[i] is not None]
 
-print(f'Molecule construction suceeded for {len(first_round_molecules_success)}/{len(first_round_molecules_rdkit)} examples in the first round dataset')
-if len(first_round_molecules_success) < len(first_round_molecules_rdkit):
-    print(f'Molecule construction failed for { len(first_round_molecules_rdkit)-len(first_round_molecules_success) }/{len(first_round_molecules_rdkit)} examples in the first round dataset')
+# print(f'Molecule construction suceeded for {len(first_round_molecules_success)}/{len(first_round_molecules_rdkit)} examples in the first round dataset')
+# if len(first_round_molecules_success) < len(first_round_molecules_rdkit):
+#     print(f'Molecule construction failed for { len(first_round_molecules_rdkit)-len(first_round_molecules_success) }/{len(first_round_molecules_rdkit)} examples in the first round dataset')
 # print(f'Molecule construction failed for {len(evaluation_molecules_rdkit) - len(evaluation_molecules_success)}/{len(evaluation_molecules_rdkit)} examples in the evaluation dataset')
 
-table_first_round_molecules = table_first_round_molecules.iloc[first_round_molecules_success].reset_index()
+# table_first_round_molecules = table_first_round_molecules.iloc[first_round_molecules_success].reset_index()
 # table_evaluation_molecules = table_evaluation_molecules.iloc[evaluation_molecules_success].reset_index()
 
-first_round_molecules_rdkit = [mol for mol in first_round_molecules_rdkit if mol is not None]
+# first_round_molecules_rdkit = [mol for mol in first_round_molecules_rdkit if mol is not None]
 # evaluation_molecules_rdkit = [mol for mol in evaluation_molecules_rdkit if mol is not None]
 
 
-print('Extracting chemical features/descriptors for each molecule...')
-features_first_round_molecules = extract_chemical_features(first_round_molecules_rdkit)
-print('Done.')
+# print('Extracting chemical features/descriptors for each molecule...')
+# features_first_round_molecules = extract_chemical_features(first_round_molecules_rdkit)
+# print('Done.')
 # features_first_round_molecules.index = table_first_round_molecules['Name']
 
 # features_evaluation_molecules = extract_chemical_features(evaluation_molecules_rdkit)
 # features_evaluation_molecules.index = table_evaluation_molecules['Name']
-
-print('Example of descriptors for 10 molecules')
-display(features_first_round_molecules.head())
 
 """# Part I: Exploratory Data Analysis
 
@@ -237,45 +130,20 @@ We will use the Tanimoto similarity, a custom metric for calculating similarity 
 
 """
 
-from rdkit.Chem import AllChem, DataStructs
 from scipy.sparse import csr_array
 from scipy.sparse.csgraph import connected_components
 from sklearn.model_selection import GroupShuffleSplit, StratifiedGroupKFold
-from rdkit.Chem import rdFingerprintGenerator
 
 
-def calculate_morgan_fingerprints(list_molecules, radius=2, fpSize=1024):
-  '''
-  A count-based representation of small molecules (e.g., how many occurence of O with double bond to C, etc.)
-  '''
-  mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=radius,fpSize=fpSize)
-  fingerprints = [mfpgen.GetFingerprint(mol) for mol in list_molecules]
-  return fingerprints
+first_round_molecules_rdkit, features_first_round_molecules, first_round_molecules_morgan_fingerprints = get_features_and_morgan_fingerprints(table_first_round_molecules)
 
-
-def calculate_tanimoto_similarity(fp1,fp2):
-    """
-    Calculate the Tanimoto similarity between two molecules given their Morgan fingerprints.
-
-    Parameters:
-    fp1 (str): Morgan Fingerprints of the first molecule.
-    fp2 (str): Morgan Fingerprints of the second molecule.
-
-    Returns:
-    float: Tanimoto similarity score (0 to 1), or None if invalid SMILES.
-    """
-    return DataStructs.TanimotoSimilarity(fp1, fp2)
-
-
-
-print('Calculating Morgan fingerprints for all molecules...')
-first_round_molecules_morgan_fingerprints = calculate_morgan_fingerprints(first_round_molecules_rdkit)
 # evaluation_molecules_morgan_fingerprints = calculate_morgan_fingerprints(evaluation_molecules_rdkit)
 
+print('Example of descriptors for 10 molecules')
+display(features_first_round_molecules.head())
 
 nFirstRoundMols = len(first_round_molecules_rdkit)
 # nEvaluationMols = len(evaluation_molecules_rdkit)
-
 
 # Initialize Tanimoto similarity matrix for first round molecules - similarities between each pair.
 tanimoto_similarities_first_round = np.zeros([nFirstRoundMols,nFirstRoundMols])
@@ -327,8 +195,6 @@ print(f'Created {n_groups} groups')
 train_test_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
 [(train_and_val_index, test_index)] = train_test_split.split(features_first_round_molecules,table_first_round_molecules['Class_Label'],groups)
 
-
-
 ## Use this train/val split for training the GNN.
 train_val_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
 [(train_index, val_index)] = train_val_split.split(features_first_round_molecules.iloc[train_and_val_index],table_first_round_molecules['Class_Label'].iloc[train_and_val_index],groups[train_and_val_index])
@@ -379,108 +245,8 @@ We have per-node features (atom type, etc.) and per-edge features (covalent bond
 - An edge indices matrix $E$, of size Number of edges by 2 ($E_{k1},E_{k2}$ are the indices of the incoming and outgoing node for edge k).
 """
 
-import torch
-
-
-def molecule_to_graph(mol):
-    """
-    Convert a RDKIT Molecule object into a graph-based representation.
-
-    Parameters:
-    smiles (str): SMILES string of the molecule.
-
-    Returns:
-    - node_features: List of feature vectors for each atom.
-    - edge_index: List of [source, target] pairs representing bonds.
-    - edge_features: List of feature vectors for each bond.
-    """
-
-    atom_types = ['C','O','N','S','F','Cl','Br','P']
-    hybridization_types = list(Chem.rdchem.HybridizationType.values.values())
-
-
-    def ont_hot_encoding(symbol,symbols):
-      nsymbols = len(symbols)
-      idx = symbols.index(symbol) if symbol in symbols else nsymbols
-      one_hot = torch.zeros(nsymbols+1)
-      one_hot[idx] = 1
-      return one_hot
-
-
-    # Define node feature extraction
-    def get_atom_features(atom):
-        """
-        Extract features for a single atom.
-
-        Per-atom features:
-
-
-
-
-
-        """
-        all_features =  torch.concatenate([
-            ont_hot_encoding(atom.GetSymbol() , atom_types  ), # Heavy atom type
-            ont_hot_encoding(atom.GetHybridization() , hybridization_types  ), # Electronic orbital type (Sp3, Sp2...)
-            torch.tensor([atom.GetDegree()]),                # Number of bonds
-            torch.tensor([atom.GetFormalCharge()]),          # Formal charge
-            torch.tensor([atom.GetTotalNumHs()]),            # Number of hydrogen atoms attached to it.
-            torch.tensor([atom.IsInRing()])      # Is the atom in a ring? (1 or 0)
-
-        ]).to(torch.float32)
-        return all_features
-
-
-    # Define edge feature extraction
-    def get_bond_features(bond):
-        """
-        Extract features for a single bond.
-        Returns a list of features: [is_single, is_double, is_triple, is_aromatic, is_conjugated]
-        """
-        bond_type = bond.GetBondType()
-        return [
-            1 if bond_type == Chem.BondType.SINGLE else 0,
-            1 if bond_type == Chem.BondType.DOUBLE else 0,
-            1 if bond_type == Chem.BondType.TRIPLE else 0,
-            1 if bond_type == Chem.BondType.AROMATIC else 0,
-            1 if bond.GetIsConjugated() else 0
-        ]
-
-
-    # Initialize lists for graph components
-    node_features = [get_atom_features(atom) for atom in mol.GetAtoms()]  # Extract node features for each atom
-
-    edge_features = []
-    edge_index = []
-
-    # Extract edge features and connectivity
-    for bond in mol.GetBonds():
-        start_idx = bond.GetBeginAtomIdx()
-        end_idx = bond.GetEndAtomIdx()
-        # Add edges in both directions (undirected graph)
-        edge_index.append([start_idx, end_idx])
-        edge_index.append([end_idx, start_idx])
-        # Add bond features for both directions
-        bond_feats = get_bond_features(bond)
-        edge_features.append(bond_feats)
-        edge_features.append(bond_feats)
-
-    # Convert to torch tensors
-    node_features = torch.stack(node_features,axis=0)
-    if len(edge_features)==0:
-      print(mol,'This molecule has no edges!')
-      edge_features = torch.zeros([0, 5],dtype=torch.float32)
-      edge_index = torch.zeros([0, 2],dtype=torch.int64)
-    else:
-      edge_features = torch.tensor(edge_features,dtype=torch.float32)
-      edge_index = torch.tensor( edge_index, dtype=torch.int64)  # Shape: [num_edges,2]
-    return node_features,edge_features,edge_index
-
-
-
 first_round_molecules_graph = [molecule_to_graph(mol) for mol in first_round_molecules_rdkit]
 # evaluation_molecules_graph = [molecule_to_graph(mol) for mol in evaluation_molecules_rdkit]
-
 
 
 print('Example of graph representation for one molecules')
