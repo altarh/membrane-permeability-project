@@ -32,6 +32,12 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 
+try:
+    from IPython.display import display
+except ImportError:
+    def display(obj):
+        print(obj)  # Fallback to print
+
 # table_first_round_molecules   =  pd.read_excel( '/content/MLCB_2024_HW2_Data/training_table.xlsx',skiprows=1,sheet_name='S1B')
 table_first_round_molecules = pd.read_csv('CycPeptMPDB_Peptide_All.csv')
 
@@ -164,31 +170,35 @@ def extract_chemical_features(list_molecules):
 
 # SMILES is a string-based representation of molecules.
 first_round_molecules_smiles = table_first_round_molecules['SMILES']
-evaluation_molecules_smiles = table_evaluation_molecules['SMILES']
+# evaluation_molecules_smiles = table_evaluation_molecules['SMILES']
 
 # We first turn each molecule into an instance of the RDKIT molecule.
 first_round_molecules_rdkit = [Chem.MolFromSmiles(smiles) for smiles in first_round_molecules_smiles]
-evaluation_molecules_rdkit = [Chem.MolFromSmiles(smiles) for smiles in evaluation_molecules_smiles]
+# evaluation_molecules_rdkit = [Chem.MolFromSmiles(smiles) for smiles in evaluation_molecules_smiles]
 
 # Discard examples for which conversion failed.
 first_round_molecules_success = [i for i in range(len(first_round_molecules_rdkit)) if first_round_molecules_rdkit[i] is not None]
-evaluation_molecules_success = [i for i in range(len(evaluation_molecules_rdkit)) if evaluation_molecules_rdkit[i] is not None]
+# evaluation_molecules_success = [i for i in range(len(evaluation_molecules_rdkit)) if evaluation_molecules_rdkit[i] is not None]
 
-print(f'Molecule construction failed for { len(first_round_molecules_rdkit)-len(first_round_molecules_success) }/{len(first_round_molecules_rdkit)} examples in the first round dataset')
-print(f'Molecule construction failed for {len(evaluation_molecules_rdkit) - len(evaluation_molecules_success)}/{len(evaluation_molecules_rdkit)} examples in the evaluation dataset')
+print(f'Molecule construction suceeded for {len(first_round_molecules_success)}/{len(first_round_molecules_rdkit)} examples in the first round dataset')
+if len(first_round_molecules_success) < len(first_round_molecules_rdkit):
+    print(f'Molecule construction failed for { len(first_round_molecules_rdkit)-len(first_round_molecules_success) }/{len(first_round_molecules_rdkit)} examples in the first round dataset')
+# print(f'Molecule construction failed for {len(evaluation_molecules_rdkit) - len(evaluation_molecules_success)}/{len(evaluation_molecules_rdkit)} examples in the evaluation dataset')
 
 table_first_round_molecules = table_first_round_molecules.iloc[first_round_molecules_success].reset_index()
-table_evaluation_molecules = table_evaluation_molecules.iloc[evaluation_molecules_success].reset_index()
+# table_evaluation_molecules = table_evaluation_molecules.iloc[evaluation_molecules_success].reset_index()
 
 first_round_molecules_rdkit = [mol for mol in first_round_molecules_rdkit if mol is not None]
-evaluation_molecules_rdkit = [mol for mol in evaluation_molecules_rdkit if mol is not None]
+# evaluation_molecules_rdkit = [mol for mol in evaluation_molecules_rdkit if mol is not None]
 
 
+print('Extracting chemical features/descriptors for each molecule...')
 features_first_round_molecules = extract_chemical_features(first_round_molecules_rdkit)
-features_first_round_molecules.index = table_first_round_molecules['Name']
+print('Done.')
+# features_first_round_molecules.index = table_first_round_molecules['Name']
 
-features_evaluation_molecules = extract_chemical_features(evaluation_molecules_rdkit)
-features_evaluation_molecules.index = table_evaluation_molecules['Name']
+# features_evaluation_molecules = extract_chemical_features(evaluation_molecules_rdkit)
+# features_evaluation_molecules.index = table_evaluation_molecules['Name']
 
 print('Example of descriptors for 10 molecules')
 display(features_first_round_molecules.head())
@@ -258,16 +268,19 @@ def calculate_tanimoto_similarity(fp1,fp2):
 
 
 
+print('Calculating Morgan fingerprints for all molecules...')
 first_round_molecules_morgan_fingerprints = calculate_morgan_fingerprints(first_round_molecules_rdkit)
-evaluation_molecules_morgan_fingerprints = calculate_morgan_fingerprints(evaluation_molecules_rdkit)
+# evaluation_molecules_morgan_fingerprints = calculate_morgan_fingerprints(evaluation_molecules_rdkit)
 
 
 nFirstRoundMols = len(first_round_molecules_rdkit)
-nEvaluationMols = len(evaluation_molecules_rdkit)
+# nEvaluationMols = len(evaluation_molecules_rdkit)
 
 
+# Initialize Tanimoto similarity matrix for first round molecules - similarities between each pair.
 tanimoto_similarities_first_round = np.zeros([nFirstRoundMols,nFirstRoundMols])
 
+print('Calculating Tanimoto similarities between molecules...')
 
 ## Calculate Tanimoto similarities within set of molecules from first round.
 for i in range(nFirstRoundMols):
@@ -278,24 +291,33 @@ for i in range(nFirstRoundMols):
 
 ## Calculate Tanimoto similarities between set of molecules from first round and set from second round.
 
+# Similarities are calculated between "evaluation molecules" (unlabeled, from the second round) and "first round" molecules.
+# tanimoto_similarities_evaluation_to_first_round = np.zeros([nEvaluationMols,nFirstRoundMols])
+# for i in range(nEvaluationMols):
+#   for j in range(nFirstRoundMols):
+#     tanimoto_similarities_evaluation_to_first_round[i,j] = calculate_tanimoto_similarity(evaluation_molecules_morgan_fingerprints[i],first_round_molecules_morgan_fingerprints[j])
 
-tanimoto_similarities_evaluation_to_first_round = np.zeros([nEvaluationMols,nFirstRoundMols])
-for i in range(nEvaluationMols):
-  for j in range(nFirstRoundMols):
-    tanimoto_similarities_evaluation_to_first_round[i,j] = calculate_tanimoto_similarity(evaluation_molecules_morgan_fingerprints[i],first_round_molecules_morgan_fingerprints[j])
-
+print('Done.')
 
 ## Explain this code section for Q4/5.
 
-similarity_to_closest_labeled_molecule = tanimoto_similarities_evaluation_to_first_round.max(axis=1)
-plt.hist(similarity_to_closest_labeled_molecule,bins=100)
-plt.xlabel('Tanimoto similarity')
-plt.show()
+# For each evaluation molecule, find the maximum similarity to any first-round molecule.
+# Plot a histogram of these max similarities and select the median as the cutoff (tanimoto_cut_off).
 
-tanimoto_cut_off = np.median(similarity_to_closest_labeled_molecule)
+# similarity_to_closest_labeled_molecule = tanimoto_similarities_evaluation_to_first_round.max(axis=1)
+# plt.hist(similarity_to_closest_labeled_molecule,bins=100)
+# plt.xlabel('Tanimoto similarity')
+# plt.show()
+
+# tanimoto_cut_off = np.median(similarity_to_closest_labeled_molecule)
+# print(f'Selected Tanimoto similarity Cut-off: {tanimoto_cut_off:.2f}')
+
+# =================== temporary fix without evaluation set: ===================
+tanimoto_cut_off = np.median(tanimoto_similarities_first_round)
 print(f'Selected Tanimoto similarity Cut-off: {tanimoto_cut_off:.2f}')
 
 
+# Create groups (clusters) of similar molecules based on Tanimoto similarity cut-off.
 binary_similarity_graph = tanimoto_similarities_first_round >= tanimoto_cut_off
 n_groups, groups = connected_components(csgraph=csr_array(binary_similarity_graph), directed=False, return_labels=True)
 
@@ -457,7 +479,7 @@ def molecule_to_graph(mol):
 
 
 first_round_molecules_graph = [molecule_to_graph(mol) for mol in first_round_molecules_rdkit]
-evaluation_molecules_graph = [molecule_to_graph(mol) for mol in evaluation_molecules_rdkit]
+# evaluation_molecules_graph = [molecule_to_graph(mol) for mol in evaluation_molecules_rdkit]
 
 
 
@@ -532,7 +554,7 @@ train_dataset = dataset[train_index]
 validation_dataset = dataset[val_index]
 test_dataset = dataset[test_index]
 
-evaluation_dataset = CustomGraphDataset(evaluation_molecules_graph)
+# evaluation_dataset = CustomGraphDataset(evaluation_molecules_graph)
 
 
 # Create a DataLoader for batching
