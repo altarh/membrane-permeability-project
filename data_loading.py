@@ -1,8 +1,4 @@
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
 import pandas as pd
-from rdkit import Chem
 import numpy as np
 import ast
 
@@ -16,5 +12,4 @@ def read_file_and_add_Class_Label(csv_path='CycPeptMPDB_First30.csv'):
     df['Class_Label'] = df['mean_Permeability'].apply(lambda x: 1 if x > threshold else 0)
     return df
 
-print(read_file_and_add_Class_Label()['Class_Label'].head(30))
 
