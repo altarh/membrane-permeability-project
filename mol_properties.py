@@ -1,4 +1,6 @@
 from rdkit import Chem
+from scipy.sparse.csgraph import connected_components
+from scipy.sparse import csr_array
 from rdkit.Chem import Descriptors, Lipinski, Crippen, MolSurf, DataStructs
 from rdkit.Chem import rdFingerprintGenerator
 
@@ -155,3 +157,40 @@ def get_features_and_morgan_fingerprints(molecules_table):
 
     return molecules_rdkit, molecules_features, molecules_morgan_fingerprints
 
+def create_tanimoto_groups(morgan_fingerprints):
+    """
+    Create Tanimoto-based groups from pre-calculated Morgan fingerprints.
+    
+    Parameters:
+    -----------
+    morgan_fingerprints : List of Morgan fingerprints (from get_features_and_morgan_fingerprints)
+    cutoff : Tanimoto similarity threshold. Molecules with similarity >= cutoff will be assigned to the same group.
+        
+    Returns:
+    --------
+    groups : Group assignments for each molecule
+    """
+    # Calculate pairwise Tanimoto similarities
+    n_mols = len(morgan_fingerprints)
+    tanimoto_matrix = np.zeros((n_mols, n_mols))
+    
+    for i in range(n_mols):
+        for j in range(i + 1, n_mols):
+            sim = calculate_tanimoto_similarity(morgan_fingerprints[i], morgan_fingerprints[j])
+            tanimoto_matrix[i, j] = sim
+            tanimoto_matrix[j, i] = sim
+    
+    # Create binary similarity graph
+    np.fill_diagonal(tanimoto_matrix, 0)
+    max_similarities = tanimoto_matrix.max(axis=1)
+    cutoff = np.median(max_similarities)
+    binary_similarity_graph = tanimoto_matrix >= cutoff
+    
+    # Find connected components (molecules connected by similarity >= cutoff)
+    n_groups, groups = connected_components(
+        csgraph=csr_array(binary_similarity_graph), 
+        directed=False, 
+        return_labels=True
+    )
+    
+    return groups
