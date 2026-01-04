@@ -48,13 +48,13 @@ from torch_geometric.nn import global_mean_pool
 
 
 class GCN(torch.nn.Module):
-    def __init__(self, hidden_channels):
+    def __init__(self, num_node_features, hidden_channels):
         super(GCN, self).__init__()
         torch.manual_seed(12345)
 
 
         # Initialize the layers
-        self.node_embedding = Linear(dataset.num_node_features, hidden_channels)
+        self.node_embedding = Linear(num_node_features, hidden_channels)
         self.conv = GCNConv(hidden_channels, hidden_channels)
         self.lin = Linear(hidden_channels, 1) # a single continous value for regression
 

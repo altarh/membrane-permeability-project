@@ -207,10 +207,6 @@ train_test_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
     groups
 )
 
-# Use this train/val split for training the GNN.
-train_val_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
-[(train_index, val_index)] = train_val_split.split(features_first_round_molecules.iloc[train_and_val_index],table_first_round_molecules['Class_Label'].iloc[train_and_val_index],groups[train_and_val_index])
-
 # 1. Identify which rows in the WHOLE table have missing PAMPA
 missing_pampa_mask = table_first_round_molecules['PAMPA'].isna()
 indices_missing_pampa = np.where(missing_pampa_mask)[0]
@@ -227,6 +223,10 @@ if len(rows_to_move) > 0:
     # 4. Sort indices to keep things tidy
     train_and_val_index.sort()
     test_index.sort()
+
+# Use this train/val split for training the GNN.
+train_val_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
+[(train_index, val_index)] = train_val_split.split(features_first_round_molecules.iloc[train_and_val_index],table_first_round_molecules['Class_Label'].iloc[train_and_val_index],groups[train_and_val_index])
 
 # Create 5-fold cross-validation partition
 cv_indices = create_tanimoto_kfold_partition(
@@ -342,7 +342,7 @@ Note that here, we don't use the edge features at all
 """
 from CNN import GCN
 
-model = GCN(hidden_channels=64)
+model = GCN(dataset.num_node_features, hidden_channels=64)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 loss_function = torch.nn.L1Loss()
 
