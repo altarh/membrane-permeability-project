@@ -207,21 +207,14 @@ if len(rows_to_move) > 0:
 train_val_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
 [(train_index, val_index)] = train_val_split.split(features_first_round_molecules.iloc[train_and_val_index],table_first_round_molecules['Class_Label'].iloc[train_and_val_index],groups[train_and_val_index])
 
-# Create 5-fold cross-validation partition
-
-train_idx, test_idx, train_cv_folds = create_tanimoto_kfold_partition(
-    X=features_first_round_molecules,
-    y=table_first_round_molecules['Class_Label'],
-    groups=groups,
+# Create 5-fold cross-validation partition for Random Forest
+train_cv_folds = create_tanimoto_kfold_partition(
+    X=features_first_round_molecules.iloc[train_and_val_index],
+    y=table_first_round_molecules['Class_Label'].iloc[train_and_val_index],
+    groups=groups[train_and_val_index], 
     n_splits=5,
     random_state=0
 )
-
-X_test = features_first_round_molecules.iloc[test_idx]
-y_test = table_first_round_molecules['Class_Label'].iloc[test_idx]
-
-X_train = features_first_round_molecules.iloc[train_idx]
-y_train = table_first_round_molecules['Class_Label'].iloc[train_idx]
 
 
 """3.	Justify the choice of threshold used for Tamimoto similarity.
@@ -243,8 +236,8 @@ print("RANDOM FOREST CLASSIFICATION")
 print("="*70)
 
 best_random_forest_model = train_and_evaluate_random_forest_regressor(
-    X=X_train,
-    y=y_train,
+    X=features_first_round_molecules,
+    y=table_first_round_molecules['Class_Label'],
     cv_indices=train_cv_folds,
 )
 
