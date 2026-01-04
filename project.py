@@ -210,6 +210,25 @@ train_test_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
 train_val_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
 [(train_index, val_index)] = train_val_split.split(features_first_round_molecules.iloc[train_and_val_index],table_first_round_molecules['Class_Label'].iloc[train_and_val_index],groups[train_and_val_index])
 
+# 1. Identify which rows in the WHOLE table have missing PAMPA
+missing_pampa_mask = table_first_round_molecules['PAMPA'].isna()
+indices_missing_pampa = np.where(missing_pampa_mask)[0]
+
+# 2. Find which of these ended up in the train_and_val_index
+rows_to_move = np.intersect1d(train_and_val_index, indices_missing_pampa)
+
+if len(rows_to_move) > 0:
+    print(f"Moving {len(rows_to_move)} rows with missing PAMPA from Train to Test.")
+
+    # 3. Remove them from train_and_val_index
+    train_and_val_index = np.setdiff1d(train_and_val_index, rows_to_move)
+
+    # 4. Add them to test_index
+    test_index = np.union1d(test_index, rows_to_move)
+
+    # 5. Sort indices to keep things tidy
+    train_and_val_index.sort()
+    test_index.sort()
 
 # Create 5-fold cross-validation partition
 cv_indices = create_tanimoto_kfold_partition(
