@@ -231,6 +231,7 @@ if len(rows_to_move) > 0:
     # 5. Sort indices to keep things tidy
     train_and_val_index.sort()
     test_index.sort()
+
 # Create 5-fold cross-validation partition
 cv_indices = create_tanimoto_kfold_partition(
     X=features_first_round_molecules,
