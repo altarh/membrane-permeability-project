@@ -218,15 +218,12 @@ indices_missing_pampa = np.where(missing_pampa_mask)[0]
 rows_to_move = np.intersect1d(train_and_val_index, indices_missing_pampa)
 
 if len(rows_to_move) > 0:
-    print(f"Moving {len(rows_to_move)} rows with missing PAMPA from Train to Test.")
+    print(f"Deleting {len(rows_to_move)} rows with missing PAMPA from Train and eval.")
 
     # 3. Remove them from train_and_val_index
     train_and_val_index = np.setdiff1d(train_and_val_index, rows_to_move)
 
-    # 4. Add them to test_index
-    test_index = np.union1d(test_index, rows_to_move)
-
-    # 5. Sort indices to keep things tidy
+    # 4. Sort indices to keep things tidy
     train_and_val_index.sort()
     test_index.sort()
 
