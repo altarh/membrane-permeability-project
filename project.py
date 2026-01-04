@@ -43,15 +43,6 @@ except ImportError:
 # table_first_round_molecules   =  pd.read_excel( '/content/MLCB_2024_HW2_Data/training_table.xlsx',skiprows=1,sheet_name='S1B')
 table_first_round_molecules = read_file_and_add_Class_Label('CycPeptMPDB_Peptide_All.csv')
 
-print(table_first_round_molecules['Class_Label'].iloc[0:5])
-
-print( 'Training table') # This dataset was collected in the first experimental round and will be used for training/evaluating the performance of our model.
-display(table_first_round_molecules.head())
-
-# table_evaluation_molecules = pd.read_excel('/content/MLCB_2024_HW2_Data/DrugRepurposing_Hub_predictions.xlsx',skiprows=1,sheet_name='S2B').drop(columns=['Unnamed: 6','Broad_ID'])
-# print( 'Evaluation table') # This dataset was used for screening candidates in the second experimental round. We will use it for inference only.
-# display(table_evaluation_molecules.head())
-
 """# Part 0: Parsing the data into Tabular Machine Learning format using the RDKIT package
 
 In this section we:
@@ -133,11 +124,13 @@ first_round_molecules_rdkit, features_first_round_molecules, first_round_molecul
 
 # evaluation_molecules_morgan_fingerprints = calculate_morgan_fingerprints(evaluation_molecules_rdkit)
 
-print('Example of descriptors for 10 molecules')
-display(features_first_round_molecules.head())
+# print('Example of descriptors for 10 molecules')
+# display(features_first_round_molecules.head())
 
 # Create Tanimoto groups (uses median cutoff adaptively)
-groups = create_tanimoto_groups(first_round_molecules_morgan_fingerprints)
+print(f"Calculating tanimoto similarities...")
+n_groups, groups = create_tanimoto_groups(first_round_molecules_morgan_fingerprints)
+print(f"Created {n_groups} groups using tanimoto partition")
 
 # nFirstRoundMols = len(first_round_molecules_rdkit)
 # nEvaluationMols = len(evaluation_molecules_rdkit)
@@ -202,6 +195,8 @@ groups = create_tanimoto_groups(first_round_molecules_morgan_fingerprints)
 # cross_val_split = StratifiedGroupKFold(n_splits=5,shuffle=True,random_state=0)
 
 # cv_indices = list( cross_val_split.split(features_first_round_molecules.iloc[train_and_val_index], table_first_round_molecules['Class_Label'].iloc[train_and_val_index], groups[train_and_val_index]) )
+
+print("Splitting data")
 
 # Create train/test split (80/20) respecting Tanimoto groups
 train_test_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
@@ -290,23 +285,6 @@ We have per-node features (atom type, etc.) and per-edge features (covalent bond
 - An edge feature matrix $F_E$, of size Number of edges by Number of feature nodes.
 - An edge indices matrix $E$, of size Number of edges by 2 ($E_{k1},E_{k2}$ are the indices of the incoming and outgoing node for edge k).
 """
-
-first_round_molecules_graph = [molecule_to_graph(mol) for mol in first_round_molecules_rdkit]
-# evaluation_molecules_graph = [molecule_to_graph(mol) for mol in evaluation_molecules_rdkit]
-
-
-# print('Example of graph representation for one molecules')
-
-# print('Node features shape',first_round_molecules_graph[0][0].shape)
-# print( first_round_molecules_graph[0][0] )
-
-# print('Edge features shape',first_round_molecules_graph[0][1].shape)
-# print( first_round_molecules_graph[0][1] )
-
-
-# print('Edge indices shape',first_round_molecules_graph[0][2].shape)
-# print( first_round_molecules_graph[0][2] )
-
 """# Inmplementing a Graph Convolution Network using PyTorch Geometric
 
 This implementation is adapted from https://colab.research.google.com/drive/1I8a0DfQ3fI7Njc62__mVXUlcAleUclnb?usp=sharing#scrollTo=0gZ-l0npPIca
@@ -361,6 +339,9 @@ class CustomGraphDataset(Dataset):
 
 print(f"Building GNN")
 
+first_round_molecules_graph = [molecule_to_graph(mol) for mol in first_round_molecules_rdkit]
+# evaluation_molecules_graph = [molecule_to_graph(mol) for mol in evaluation_molecules_rdkit]
+
 # Create the dataset
 dataset = CustomGraphDataset(first_round_molecules_graph, table_first_round_molecules['Class_Label'])
 
@@ -369,7 +350,6 @@ validation_dataset = dataset[val_index]
 test_dataset = dataset[test_index]
 
 # evaluation_dataset = CustomGraphDataset(evaluation_molecules_graph)
-
 
 # Create a DataLoader for batching
 batch_size = 2
@@ -439,6 +419,7 @@ def train():
          optimizer.step()  # Update parameters based on gradients.
          optimizer.zero_grad()  # Clear gradients.
 
+
 def test(loader):
      model.eval()
      total_mae = 0
@@ -457,5 +438,5 @@ for epoch in range(1, 10):  # TODO (ASK): temp until running on GPU
     train_mae = test(train_loader)
     val_mae = test(validation_loader)
     test_mae = test(test_loader)
-    print(f'Epoch: {epoch:03d}, Train MAE: {train_mae:.4f}, Val MAE: {test_mae:.4f} ,  Test MAE: {test_mae:.4f}')
+    print(f'Epoch: {epoch:03d}, Train MAE: {train_mae:.4f}, Val MAE: {test_mae:.4f},  Test MAE: {test_mae:.4f}')
 

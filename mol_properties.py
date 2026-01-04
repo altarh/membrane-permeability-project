@@ -201,4 +201,4 @@ def create_tanimoto_groups(morgan_fingerprints):
         return_labels=True
     )
     
-    return groups
+    return n_groups, groups
