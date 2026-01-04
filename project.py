@@ -208,10 +208,15 @@ train_val_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
 [(train_index, val_index)] = train_val_split.split(features_first_round_molecules.iloc[train_and_val_index],table_first_round_molecules['Class_Label'].iloc[train_and_val_index],groups[train_and_val_index])
 
 # Create 5-fold cross-validation partition for Random Forest
+
+X_train_subset = features_first_round_molecules.iloc[train_and_val_index]
+y_train_subset = table_first_round_molecules['Class_Label'].iloc[train_and_val_index]
+groups_train_subset = groups[train_and_val_index]
+
 train_cv_folds = create_tanimoto_kfold_partition(
-    X=features_first_round_molecules.iloc[train_and_val_index],
-    y=table_first_round_molecules['Class_Label'].iloc[train_and_val_index],
-    groups=groups[train_and_val_index], 
+    X=X_train_subset,
+    y=y_train_subset,
+    groups=groups_train_subset,
     n_splits=5,
     random_state=0
 )
@@ -232,12 +237,13 @@ from random_forest import train_and_evaluate_random_forest_regressor
 
 # Train and evaluate Random Forest with 5-fold CV
 print("\n" + "="*70)
-print("RANDOM FOREST CLASSIFICATION")
+print("RANDOM FOREST REGRESSION")
 print("="*70)
 
+# 3. Pass the SAME subset to the training function
 best_random_forest_model = train_and_evaluate_random_forest_regressor(
-    X=features_first_round_molecules,
-    y=table_first_round_molecules['Class_Label'],
+    X=X_train_subset, 
+    y=y_train_subset,
     cv_indices=train_cv_folds,
 )
 
