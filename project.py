@@ -244,7 +244,7 @@ y_train = table_first_round_molecules['Class_Label'].iloc[train_idx]
 6.	Using sklearn’s HistGradBoosting (or xgboost/LightGBM), build a Gradient Boosted Tree classifier. Select the optimal hyperparameters (number of iterations; learning rate; regularization strength; number of leaves) by cross-validation using the provided group split. Calculate the precision-recall curve over the test set, display it and report the AUCPR. Comment on the quality of the predictions.
 """
 
-from random_forest import train_and_evaluate_random_forest, analyze_feature_importance
+from random_forest import train_and_evaluate_random_forest
 
 # Train and evaluate Random Forest with 5-fold CV
 print("\n" + "="*70)
