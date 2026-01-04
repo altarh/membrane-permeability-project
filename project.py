@@ -15,6 +15,7 @@ Figure and data from: A Deep Learning Approach to Antimicrobial Discovery, Stoke
 
 ## Download data & install packages
 """
+import torch
 
 # NOT NEEDED - original homework data download
 #!wget https://github.com/jertubiana/jertubiana.github.io/raw/master/misc/MLCB_2024_HW2_Data.zip
@@ -41,7 +42,7 @@ except ImportError:
         print(obj)  # Fallback to print
 
 # table_first_round_molecules   =  pd.read_excel( '/content/MLCB_2024_HW2_Data/training_table.xlsx',skiprows=1,sheet_name='S1B')
-table_first_round_molecules = read_file_and_add_Class_Label('CycPeptMPDB_Peptide_All.csv')
+table_first_round_molecules = read_file_and_add_Class_Label('CycPeptMPDB_First30.csv')
 
 """# Part 0: Parsing the data into Tabular Machine Learning format using the RDKIT package
 
@@ -306,57 +307,19 @@ We have per-node features (atom type, etc.) and per-edge features (covalent bond
 This implementation is adapted from https://colab.research.google.com/drive/1I8a0DfQ3fI7Njc62__mVXUlcAleUclnb?usp=sharing#scrollTo=0gZ-l0npPIca
 
 I recommend to go over this notebook first.
-
-
-## Step 1: Convert data into PyTorch Geometric Dataset
 """
 
-import torch
-from torch_geometric.data import Data, Dataset
+
+"""
+Step 1: Convert data into PyTorch Geometric Dataset
+"""
+
+from CNN import CustomGraphDataset
 from torch_geometric.loader import DataLoader
-
-
-# TODO (ASK): move to mol_to_GNN.py ?
-# Custom Dataset class
-class CustomGraphDataset(Dataset):
-    def __init__(self, graph_triplets, graph_labels=None, transform=None, pre_transform=None):
-        super(CustomGraphDataset, self).__init__(transform=transform, pre_transform=pre_transform)
-        self.data_list = self._process_examples(graph_triplets,graph_labels=graph_labels)
-
-    def _process_examples(self, graph_triplets,graph_labels=None):
-      N = len(graph_triplets)
-      data_list = []
-      for n in range(N):
-          node_features, edge_features, edge_indices = graph_triplets[n]
-          label = torch.tensor( graph_labels[n]) if graph_labels is not None else None
-
-          # Create a Data object for each graph
-          data = Data(
-              x=node_features,               # Node features
-              edge_attr=edge_features,       # Edge features
-              edge_index=edge_indices.T,       # Edge indices
-              y=label                        # Binary label
-          )
-          data_list.append(data)
-      return data_list
-
-    def len(self):
-        """
-        Return the number of graphs in the dataset.
-        """
-        return len(self.data_list)
-
-    def get(self, idx):
-        """
-        Return the Data object at index idx.
-        """
-        return self.data_list[idx]
-
 
 print(f"Building GNN")
 
 first_round_molecules_graph = [molecule_to_graph(mol) for mol in first_round_molecules_rdkit]
-# evaluation_molecules_graph = [molecule_to_graph(mol) for mol in evaluation_molecules_rdkit]
 
 # Create the dataset
 dataset = CustomGraphDataset(first_round_molecules_graph, table_first_round_molecules['Class_Label'])
@@ -365,7 +328,6 @@ train_dataset = dataset[train_index]
 validation_dataset = dataset[val_index]
 test_dataset = dataset[test_index]
 
-# evaluation_dataset = CustomGraphDataset(evaluation_molecules_graph)
 
 # Create a DataLoader for batching
 batch_size = 2
@@ -374,47 +336,11 @@ validation_loader = DataLoader(validation_dataset, batch_size=16, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
 evaluation_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
 
-"""## Step 2: Define a simple Graph Convolution Network
-Note that here, we don't use the edge features at all.**bold text**
 """
-
-from torch.nn import Linear
-import torch.nn.functional as F
-from torch_geometric.nn import GCNConv
-from torch_geometric.nn import global_mean_pool
-
-
-class GCN(torch.nn.Module):
-    def __init__(self, hidden_channels):
-        super(GCN, self).__init__()
-        torch.manual_seed(12345)
-
-
-        # Initialize the layers
-        self.node_embedding = Linear(dataset.num_node_features, hidden_channels)
-        self.conv = GCNConv(hidden_channels, hidden_channels)
-        self.lin = Linear(hidden_channels, 1) # a single continous value for regression
-
-
-    def forward(self, node_features, edge_features, edge_index, batch):
-
-        # 1. Embed node features
-        x = self.node_embedding(node_features)
-        x = x.relu()
-
-        # 2. Pass through a [permutation-equivariant] GCN layer
-
-        x = self.conv(x, edge_index) # Element-wise non-linearity
-        x = x.relu() # Element-wise non-linearity
-
-        # 3. Global average pooling for obtaining a permutation-invariant representation.
-        x = global_mean_pool(x, batch)  # [batch_size, hidden_channels]
-
-        # 4. Apply a final classifier
-        x = self.lin(x) # This is the pre-sigmoid output.
-        return x
-
-
+Step 2: Define a simple Graph Convolution Network
+Note that here, we don't use the edge features at all
+"""
+from CNN import GCN
 
 model = GCN(hidden_channels=64)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
@@ -442,7 +368,7 @@ def test(loader):
      total_samples = 0
      for data in loader:  # Iterate in batches over the training/test dataset.
          out = model(data.x, data.edge_attr, data.edge_index, data.batch)
-         mae = torch.nn.functional.l1_loss(out.squeeze(), data.y.float(), reduction='sum')  # computes the sum of absolute errors 
+         mae = torch.nn.functional.l1_loss(out.squeeze(), data.y.float(), reduction='sum')  # computes the sum of absolute errors
          total_mae += mae.item()
          total_samples += data.y.size(0)  # Count the number of samples.
 
