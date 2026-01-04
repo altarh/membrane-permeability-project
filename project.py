@@ -22,7 +22,7 @@ except ImportError:
         print(obj)  # Fallback to print
 
 # table_first_round_molecules   =  pd.read_excel( '/content/MLCB_2024_HW2_Data/training_table.xlsx',skiprows=1,sheet_name='S1B')
-table_first_round_molecules = read_file_and_add_Class_Label('CycPeptMPDB_First30.csv')
+table_first_round_molecules = read_file_and_add_Class_Label('CycPeptMPDB_Peptide_All.csv')
 
 """# Part 0: Parsing the data into Tabular Machine Learning format using the RDKIT package
 
@@ -328,7 +328,7 @@ def train():
 
     for data in train_loader:  # Iterate in batches over the training dataset.
          out = model(data.x, data.edge_attr, data.edge_index, data.batch)  # Perform a single forward pass.
-         loss = loss_function(out, data.y)  # Compute the loss.
+         loss = loss_function(out.squeeze(), data.y)  # Compute the loss.
          loss.backward()  # Derive gradients.
          optimizer.step()  # Update parameters based on gradients.
          optimizer.zero_grad()  # Clear gradients.
@@ -347,7 +347,7 @@ def test(loader):
      return total_mae / total_samples  # calcualte MAE
 
 
-for epoch in range(1, 10):  # TODO (ASK): temp until running on GPU
+for epoch in range(1, 10):  # TODO (ASK): temp 10 epochs until running on GPU
     train()
     train_mae = test(train_loader)
     val_mae = test(validation_loader)
