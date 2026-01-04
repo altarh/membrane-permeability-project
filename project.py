@@ -240,29 +240,29 @@ cv_indices = create_tanimoto_kfold_partition(
 from random_forest import train_and_evaluate_random_forest, analyze_feature_importance
 
 # Train and evaluate Random Forest with 5-fold CV
-print("\n" + "="*70)
-print("RANDOM FOREST CLASSIFICATION")
-print("="*70)
+# print("\n" + "="*70)
+# print("RANDOM FOREST CLASSIFICATION")
+# print("="*70)
 
-results = train_and_evaluate_random_forest(
-    X=features_first_round_molecules,
-    y=table_first_round_molecules['Class_Label'],
-    cv_indices=cv_indices,
-    n_estimators=500,
-    class_weight='balanced',
-    random_state=0
-)
+# results = train_and_evaluate_random_forest(
+#     X=features_first_round_molecules,
+#     y=table_first_round_molecules['Class_Label'],
+#     cv_indices=cv_indices,
+#     n_estimators=500,
+#     class_weight='balanced',
+#     random_state=0
+# )
 
-# Analyze feature importance
-importance_df = analyze_feature_importance(
-    trained_model=results['trained_model'],
-    feature_names=features_first_round_molecules.columns,
-    top_n=15
-)
+# # Analyze feature importance
+# importance_df = analyze_feature_importance(
+#     trained_model=results['trained_model'],
+#     feature_names=features_first_round_molecules.columns,
+#     top_n=15
+# )
 
-print("\n" + "="*70)
-print("RANDOM FOREST TRAINING COMPLETE")
-print("="*70 + "\n")
+# print("\n" + "="*70)
+# print("RANDOM FOREST TRAINING COMPLETE")
+# print("="*70 + "\n")
 
 
 """# Part IV: Post-hoc explanations of the tree ensemble model
@@ -397,7 +397,7 @@ class GCN(torch.nn.Module):
         # Initialize the layers
         self.node_embedding = Linear(dataset.num_node_features, hidden_channels)
         self.conv = GCNConv(hidden_channels, hidden_channels)
-        self.lin = Linear(hidden_channels, 2) # Here, only two classes
+        self.lin = Linear(hidden_channels, 1) # a single continous value for regression
 
 
     def forward(self, node_features, edge_features, edge_index, batch):
@@ -422,7 +422,7 @@ class GCN(torch.nn.Module):
 
 model = GCN(hidden_channels=64)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-loss_function = torch.nn.CrossEntropyLoss()
+loss_function = torch.nn.L1Loss()
 
 """# Step 3: Train the model!
 
@@ -441,45 +441,21 @@ def train():
 
 def test(loader):
      model.eval()
-     correct = 0
+     total_mae = 0
+     total_samples = 0
      for data in loader:  # Iterate in batches over the training/test dataset.
          out = model(data.x, data.edge_attr, data.edge_index, data.batch)
-         pred = out.argmax(dim=1)  # Most likely output.
-         correct += int((pred == data.y).sum())  # Check against ground-truth labels.
-     return correct / len(loader.dataset)  # Derive ratio of correct predictions.
+         mae = torch.nn.functional.l1_loss(out.squeeze(), data.y.float(), reduction='sum')  # computes the sum of absolute errors 
+         total_mae += mae.item()
+         total_samples += data.y.size(0)  # Count the number of samples.
+
+     return total_mae / total_samples  # calcualte MAE
 
 
 for epoch in range(1, 10):  # TODO (ASK): temp until running on GPU
     train()
-    train_acc = test(train_loader)
-    val_acc = test(validation_loader)
-    test_acc = test(test_loader)
-    print(f'Epoch: {epoch:03d}, Train Acc: {train_acc:.4f}, Val Acc: {test_acc:.4f} ,  Test Acc: {test_acc:.4f}')
-
-"""11.	Setting the number of epochs and early stopping.
-
-
-a.	Modify the code to record the Area Under the Precision Recall Curve (AUCPR) over the train and validation set after each epoch and plot the learning curve (metric vs epoch) for the train and validation set. Adjust the number of epochs until overfitting is observed.
-
-b.	Retrain the same GCN model, but add an early stopping criterion using the AUCPR calculated over the validation set. Report the performance on the test set. How does it compare to the feature-based model?
-
-"""
-
-
-
-"""12.	How many parameters does the GCN have, as function of the number of layers and of the dimension of the node features?
-
-13.	Varying the network width: Train GCNs with varying node feature dimensions ([16,32,64,128] ) and plot the learning curves of the model (loss vs number of epochs) on the training and validation sets. Are there signs of overfitting? Why?
-"""
-
-
-
-"""14.	Varying the network depth and the oversmoothing effect: Train GCNs with varying number of layers ([1, 3,5,10]), and (approximately) fixed number of parameters, and plot the learning curves of the model. Are there signs of overfitting? Underfitting? Why?
-
-15.	Virtual screening: Pick the best GNN, and use it to predict antimicrobial activity on the evaluation set. How do the predictions correlate with the ones of the D-MPNN model? Does it predict halicin to have an activity?
-"""
-
-
-
-"""Bonus: So far, we did not use at all the edge features (i.e., whether a chemical bond is a simple, double, aromatic bond, etc.). Build a Message-Passing Neural Network that integrate these features and compare the performance of the model with the one of the GCN."""
+    train_mae = test(train_loader)
+    val_mae = test(validation_loader)
+    test_mae = test(test_loader)
+    print(f'Epoch: {epoch:03d}, Train MAE: {train_mae:.4f}, Val MAE: {test_mae:.4f} ,  Test MAE: {test_mae:.4f}')
 
