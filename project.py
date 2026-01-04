@@ -208,13 +208,20 @@ train_val_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
 [(train_index, val_index)] = train_val_split.split(features_first_round_molecules.iloc[train_and_val_index],table_first_round_molecules['Class_Label'].iloc[train_and_val_index],groups[train_and_val_index])
 
 # Create 5-fold cross-validation partition
-cv_indices = create_tanimoto_kfold_partition(
+
+train_idx, test_idx, train_cv_folds = create_tanimoto_kfold_partition(
     X=features_first_round_molecules,
-    y=table_first_round_molecules['Class_Label'].values,
+    y=table_first_round_molecules['Class_Label'],
     groups=groups,
     n_splits=5,
     random_state=0
 )
+
+X_test = features_first_round_molecules.iloc[test_idx]
+y_test = table_first_round_molecules['Class_Label'].iloc[test_idx]
+
+X_train = features_first_round_molecules.iloc[train_idx]
+y_train = table_first_round_molecules['Class_Label'].iloc[train_idx]
 
 
 """3.	Justify the choice of threshold used for Tamimoto similarity.
@@ -228,32 +235,18 @@ cv_indices = create_tanimoto_kfold_partition(
 6.	Using sklearn’s HistGradBoosting (or xgboost/LightGBM), build a Gradient Boosted Tree classifier. Select the optimal hyperparameters (number of iterations; learning rate; regularization strength; number of leaves) by cross-validation using the provided group split. Calculate the precision-recall curve over the test set, display it and report the AUCPR. Comment on the quality of the predictions.
 """
 
-from random_forest import train_and_evaluate_random_forest, analyze_feature_importance
+from random_forest import train_and_evaluate_random_forest_regressor
 
 # Train and evaluate Random Forest with 5-fold CV
 print("\n" + "="*70)
 print("RANDOM FOREST CLASSIFICATION")
 print("="*70)
 
-results = train_and_evaluate_random_forest(
-    X=features_first_round_molecules,
-    y=table_first_round_molecules['Class_Label'],
-    cv_indices=cv_indices,
-    n_estimators=500,
-    class_weight='balanced',
-    random_state=0
+best_random_forest_model = train_and_evaluate_random_forest_regressor(
+    X=X_train,
+    y=y_train,
+    cv_indices=train_cv_folds,
 )
-
-# Analyze feature importance
-importance_df = analyze_feature_importance(
-    trained_model=results['trained_model'],
-    feature_names=features_first_round_molecules.columns,
-    top_n=15
-)
-
-print("\n" + "="*70)
-print("RANDOM FOREST TRAINING COMPLETE")
-print("="*70 + "\n")
 
 
 """# Part IV: Post-hoc explanations of the tree ensemble model
