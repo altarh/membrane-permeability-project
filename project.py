@@ -240,29 +240,29 @@ cv_indices = create_tanimoto_kfold_partition(
 from random_forest import train_and_evaluate_random_forest, analyze_feature_importance
 
 # Train and evaluate Random Forest with 5-fold CV
-# print("\n" + "="*70)
-# print("RANDOM FOREST CLASSIFICATION")
-# print("="*70)
+print("\n" + "="*70)
+print("RANDOM FOREST CLASSIFICATION")
+print("="*70)
 
-# results = train_and_evaluate_random_forest(
-#     X=features_first_round_molecules,
-#     y=table_first_round_molecules['Class_Label'],
-#     cv_indices=cv_indices,
-#     n_estimators=500,
-#     class_weight='balanced',
-#     random_state=0
-# )
+results = train_and_evaluate_random_forest(
+    X=features_first_round_molecules,
+    y=table_first_round_molecules['Class_Label'],
+    cv_indices=cv_indices,
+    n_estimators=500,
+    class_weight='balanced',
+    random_state=0
+)
 
-# # Analyze feature importance
-# importance_df = analyze_feature_importance(
-#     trained_model=results['trained_model'],
-#     feature_names=features_first_round_molecules.columns,
-#     top_n=15
-# )
+# Analyze feature importance
+importance_df = analyze_feature_importance(
+    trained_model=results['trained_model'],
+    feature_names=features_first_round_molecules.columns,
+    top_n=15
+)
 
-# print("\n" + "="*70)
-# print("RANDOM FOREST TRAINING COMPLETE")
-# print("="*70 + "\n")
+print("\n" + "="*70)
+print("RANDOM FOREST TRAINING COMPLETE")
+print("="*70 + "\n")
 
 
 """# Part IV: Post-hoc explanations of the tree ensemble model
