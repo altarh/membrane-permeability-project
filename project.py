@@ -351,5 +351,5 @@ for epoch in range(1, 10):  # TODO (ASK): temp 10 epochs until running on GPU
     train_mae = test(train_loader)
     val_mae = test(validation_loader)
     test_mae = test(test_loader)
-    print(f'Epoch: {epoch:03d}, Train MAE: {train_mae:.4f}, Val MAE: {test_mae:.4f},  Test MAE: {test_mae:.4f}')
+    print(f'Epoch: {epoch:03d}, Train MAE: {train_mae:.4f}, Val MAE: {val_mae:.4f}, Test MAE: {test_mae:.4f}')
 
