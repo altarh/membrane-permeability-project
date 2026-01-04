@@ -217,13 +217,20 @@ train_val_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
 
 
 # Create 5-fold cross-validation partition
-cv_indices = create_tanimoto_kfold_partition(
+
+train_idx, test_idx, train_cv_folds = create_tanimoto_kfold_partition(
     X=features_first_round_molecules,
-    y=table_first_round_molecules['Class_Label'].values,
+    y=table_first_round_molecules['Class_Label'],
     groups=groups,
     n_splits=5,
     random_state=0
 )
+
+X_test = features_first_round_molecules.iloc[test_idx]
+y_test = table_first_round_molecules['Class_Label'].iloc[test_idx]
+
+X_train = features_first_round_molecules.iloc[train_idx]
+y_train = table_first_round_molecules['Class_Label'].iloc[train_idx]
 
 
 """3.	Justify the choice of threshold used for Tamimoto similarity.
@@ -244,25 +251,11 @@ print("\n" + "="*70)
 print("RANDOM FOREST CLASSIFICATION")
 print("="*70)
 
-results = train_and_evaluate_random_forest(
-    X=features_first_round_molecules,
-    y=table_first_round_molecules['Class_Label'],
-    cv_indices=cv_indices,
-    n_estimators=500,
-    class_weight='balanced',
-    random_state=0
+best_random_forest_regressor = train_and_evaluate_random_forest(
+    X=X_test,
+    y=y_test,
+    cv_indices=train_cv_folds,
 )
-
-# Analyze feature importance
-importance_df = analyze_feature_importance(
-    trained_model=results['trained_model'],
-    feature_names=features_first_round_molecules.columns,
-    top_n=15
-)
-
-print("\n" + "="*70)
-print("RANDOM FOREST TRAINING COMPLETE")
-print("="*70 + "\n")
 
 
 """# Part IV: Post-hoc explanations of the tree ensemble model
