@@ -203,7 +203,6 @@ groups = create_tanimoto_groups(first_round_molecules_morgan_fingerprints)
 
 # cv_indices = list( cross_val_split.split(features_first_round_molecules.iloc[train_and_val_index], table_first_round_molecules['Class_Label'].iloc[train_and_val_index], groups[train_and_val_index]) )
 
-
 # Create train/test split (80/20) respecting Tanimoto groups
 train_test_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
 [(train_and_val_index, test_index)] = train_test_split.split(
@@ -211,6 +210,11 @@ train_test_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
     table_first_round_molecules['Class_Label'],
     groups
 )
+
+# Use this train/val split for training the GNN.
+train_val_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
+[(train_index, val_index)] = train_val_split.split(features_first_round_molecules.iloc[train_and_val_index],table_first_round_molecules['Class_Label'].iloc[train_and_val_index],groups[train_and_val_index])
+
 
 # Create 5-fold cross-validation partition
 cv_indices = create_tanimoto_kfold_partition(
@@ -291,17 +295,17 @@ first_round_molecules_graph = [molecule_to_graph(mol) for mol in first_round_mol
 # evaluation_molecules_graph = [molecule_to_graph(mol) for mol in evaluation_molecules_rdkit]
 
 
-print('Example of graph representation for one molecules')
+# print('Example of graph representation for one molecules')
 
-print('Node features shape',first_round_molecules_graph[0][0].shape)
-print( first_round_molecules_graph[0][0] )
+# print('Node features shape',first_round_molecules_graph[0][0].shape)
+# print( first_round_molecules_graph[0][0] )
 
-print('Edge features shape',first_round_molecules_graph[0][1].shape)
-print( first_round_molecules_graph[0][1] )
+# print('Edge features shape',first_round_molecules_graph[0][1].shape)
+# print( first_round_molecules_graph[0][1] )
 
 
-print('Edge indices shape',first_round_molecules_graph[0][2].shape)
-print( first_round_molecules_graph[0][2] )
+# print('Edge indices shape',first_round_molecules_graph[0][2].shape)
+# print( first_round_molecules_graph[0][2] )
 
 """# Inmplementing a Graph Convolution Network using PyTorch Geometric
 
@@ -355,6 +359,7 @@ class CustomGraphDataset(Dataset):
         return self.data_list[idx]
 
 
+print(f"Building GNN")
 
 # Create the dataset
 dataset = CustomGraphDataset(first_round_molecules_graph, table_first_round_molecules['Class_Label'])
