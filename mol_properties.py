@@ -157,18 +157,9 @@ def get_features_and_morgan_fingerprints(molecules_table):
 
     return molecules_rdkit, molecules_features, molecules_morgan_fingerprints
 
-def create_tanimoto_groups(morgan_fingerprints):
+def calculate_tanimoto_similarities(morgan_fingerprints):
     """
-    Create Tanimoto-based groups from pre-calculated Morgan fingerprints.
-    
-    Parameters:
-    -----------
-    morgan_fingerprints : List of Morgan fingerprints (from get_features_and_morgan_fingerprints)
-    cutoff : Tanimoto similarity threshold. Molecules with similarity >= cutoff will be assigned to the same group.
-        
-    Returns:
-    --------
-    groups : Group assignments for each molecule
+    Calculate Tanimoto similarity between all pairs of molecules given their Morgan fingerprints.
     """
     # Calculate pairwise Tanimoto similarities
     n_mols = len(morgan_fingerprints)
@@ -179,7 +170,24 @@ def create_tanimoto_groups(morgan_fingerprints):
             sim = calculate_tanimoto_similarity(morgan_fingerprints[i], morgan_fingerprints[j])
             tanimoto_matrix[i, j] = sim
             tanimoto_matrix[j, i] = sim
+
+    return tanimoto_matrix
+
+def create_tanimoto_groups(morgan_fingerprints):
+    """
+    Create Tanimoto-based groups from pre-calculated Morgan fingerprints.
+    cutoff: The similarity threshold used to determine group membership. Using the median of the maximum similarities for each molecule.
     
+    Parameters:
+    -----------
+    morgan_fingerprints : List of Morgan fingerprints (from get_features_and_morgan_fingerprints)
+        
+    Returns:
+    --------
+    groups : Group assignments for each molecule
+    """
+    tanimoto_matrix = calculate_tanimoto_similarities(morgan_fingerprints)
+
     # Create binary similarity graph
     np.fill_diagonal(tanimoto_matrix, 0)
     max_similarities = tanimoto_matrix.max(axis=1)
