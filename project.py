@@ -86,8 +86,8 @@ train_test_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
     groups
 )
 
-# 1. Identify which rows in the WHOLE table have missing PAMPA
-missing_pampa_mask = table_first_round_molecules['PAMPA'].isna()
+# 1. Identify which rows in the WHOLE table have missing PAMPA (label)
+missing_pampa_mask = table_first_round_molecules['Class_Label'].isna()
 indices_missing_pampa = np.where(missing_pampa_mask)[0]
 
 # 2. Find which of these ended up in the train_and_val_index
@@ -101,11 +101,14 @@ if len(rows_to_move) > 0:
 
     # 4. Sort indices to keep things tidy
     train_and_val_index.sort()
-    test_index.sort()
+    test_index.sort()  # allowing rows without label for the test dataset
 
 # Use this train/val split for training the GNN.
 train_val_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
 [(train_index, val_index)] = train_val_split.split(features_first_round_molecules.iloc[train_and_val_index],table_first_round_molecules['Class_Label'].iloc[train_and_val_index],groups[train_and_val_index])
+# the indexes obtained from the split are relative to the sliced dataframes, and we want them relative to the complete dataframes.
+train_index = train_and_val_index[train_index]
+val_index = train_and_val_index[val_index]
 
 # Create 5-fold cross-validation partition for Random Forest
 
