@@ -35,38 +35,6 @@ In this section we:
 
 """
 
-# SMILES is a string-based representation of molecules.
-# first_round_molecules_smiles = table_first_round_molecules['SMILES']
-# evaluation_molecules_smiles = table_evaluation_molecules['SMILES']
-
-# We first turn each molecule into an instance of the RDKIT molecule.
-# first_round_molecules_rdkit = [Chem.MolFromSmiles(smiles) for smiles in first_round_molecules_smiles]
-# evaluation_molecules_rdkit = [Chem.MolFromSmiles(smiles) for smiles in evaluation_molecules_smiles]
-
-# Discard examples for which conversion failed.
-# first_round_molecules_success = [i for i in range(len(first_round_molecules_rdkit)) if first_round_molecules_rdkit[i] is not None]
-# evaluation_molecules_success = [i for i in range(len(evaluation_molecules_rdkit)) if evaluation_molecules_rdkit[i] is not None]
-
-# print(f'Molecule construction suceeded for {len(first_round_molecules_success)}/{len(first_round_molecules_rdkit)} examples in the first round dataset')
-# if len(first_round_molecules_success) < len(first_round_molecules_rdkit):
-#     print(f'Molecule construction failed for { len(first_round_molecules_rdkit)-len(first_round_molecules_success) }/{len(first_round_molecules_rdkit)} examples in the first round dataset')
-# print(f'Molecule construction failed for {len(evaluation_molecules_rdkit) - len(evaluation_molecules_success)}/{len(evaluation_molecules_rdkit)} examples in the evaluation dataset')
-
-# table_first_round_molecules = table_first_round_molecules.iloc[first_round_molecules_success].reset_index()
-# table_evaluation_molecules = table_evaluation_molecules.iloc[evaluation_molecules_success].reset_index()
-
-# first_round_molecules_rdkit = [mol for mol in first_round_molecules_rdkit if mol is not None]
-# evaluation_molecules_rdkit = [mol for mol in evaluation_molecules_rdkit if mol is not None]
-
-
-# print('Extracting chemical features/descriptors for each molecule...')
-# features_first_round_molecules = extract_chemical_features(first_round_molecules_rdkit)
-# print('Done.')
-# features_first_round_molecules.index = table_first_round_molecules['Name']
-
-# features_evaluation_molecules = extract_chemical_features(evaluation_molecules_rdkit)
-# features_evaluation_molecules.index = table_evaluation_molecules['Name']
-
 """# Part I: Exploratory Data Analysis
 
 1.	Display, as a scatter plot, the distribution of the number of atoms and covalent bonds per molecule. Color by the measured  class. Is there a relationship between molecule size and activity?
@@ -101,81 +69,13 @@ We will use the Tanimoto similarity, a custom metric for calculating similarity 
 
 """
 
+# We are assuming all molecules are successfully parsed into RDKIT Molecule objects
 first_round_molecules_rdkit, features_first_round_molecules, first_round_molecules_morgan_fingerprints = get_features_and_morgan_fingerprints(table_first_round_molecules)
-
-# evaluation_molecules_morgan_fingerprints = calculate_morgan_fingerprints(evaluation_molecules_rdkit)
-
-# print('Example of descriptors for 10 molecules')
-# display(features_first_round_molecules.head())
 
 # Create Tanimoto groups (uses median cutoff adaptively)
 print(f"Calculating tanimoto similarities...")
 n_groups, groups = create_tanimoto_groups(first_round_molecules_morgan_fingerprints)
 print(f"Created {n_groups} groups using tanimoto partition")
-
-# nFirstRoundMols = len(first_round_molecules_rdkit)
-# nEvaluationMols = len(evaluation_molecules_rdkit)
-
-# Initialize Tanimoto similarity matrix for first round molecules - similarities between each pair.
-# tanimoto_similarities_first_round = np.zeros([nFirstRoundMols,nFirstRoundMols])
-
-# print('Calculating Tanimoto similarities between molecules...')
-
-## Calculate Tanimoto similarities within set of molecules from first round.
-# for i in range(nFirstRoundMols):
-#   for j in range(i+1,nFirstRoundMols):
-#     tanimoto_similarities_first_round[i,j] = calculate_tanimoto_similarity(first_round_molecules_morgan_fingerprints[i],first_round_molecules_morgan_fingerprints[j])
-#     tanimoto_similarities_first_round[j,i] = tanimoto_similarities_first_round[i,j]
-
-
-## Calculate Tanimoto similarities between set of molecules from first round and set from second round.
-
-# Similarities are calculated between "evaluation molecules" (unlabeled, from the second round) and "first round" molecules.
-# tanimoto_similarities_evaluation_to_first_round = np.zeros([nEvaluationMols,nFirstRoundMols])
-# for i in range(nEvaluationMols):
-#   for j in range(nFirstRoundMols):
-#     tanimoto_similarities_evaluation_to_first_round[i,j] = calculate_tanimoto_similarity(evaluation_molecules_morgan_fingerprints[i],first_round_molecules_morgan_fingerprints[j])
-
-# print('Done.')
-
-## Explain this code section for Q4/5.
-
-# For each evaluation molecule, find the maximum similarity to any first-round molecule.
-# Plot a histogram of these max similarities and select the median as the cutoff (tanimoto_cut_off).
-
-# similarity_to_closest_labeled_molecule = tanimoto_similarities_evaluation_to_first_round.max(axis=1)
-# plt.hist(similarity_to_closest_labeled_molecule,bins=100)
-# plt.xlabel('Tanimoto similarity')
-# plt.show()
-
-# tanimoto_cut_off = np.median(similarity_to_closest_labeled_molecule)
-# print(f'Selected Tanimoto similarity Cut-off: {tanimoto_cut_off:.2f}')
-
-# =================== temporary fix without evaluation set: ===================
-# tanimoto_cut_off = np.median(tanimoto_similarities_first_round)
-# print(f'Selected Tanimoto similarity Cut-off: {tanimoto_cut_off:.2f}')
-
-
-# Create groups (clusters) of similar molecules based on Tanimoto similarity cut-off.
-# binary_similarity_graph = tanimoto_similarities_first_round >= tanimoto_cut_off
-# n_groups, groups = connected_components(csgraph=csr_array(binary_similarity_graph), directed=False, return_labels=True)
-
-# print(f'Created {n_groups} groups')
-
-
-# train_test_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
-# [(train_and_val_index, test_index)] = train_test_split.split(features_first_round_molecules,table_first_round_molecules['Class_Label'],groups)
-
-## Use this train/val split for training the GNN.
-# train_val_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
-# [(train_index, val_index)] = train_val_split.split(features_first_round_molecules.iloc[train_and_val_index],table_first_round_molecules['Class_Label'].iloc[train_and_val_index],groups[train_and_val_index])
-
-
-## Use this 5-fold cross-validation for training and evaluating the feature-based model.
-
-# cross_val_split = StratifiedGroupKFold(n_splits=5,shuffle=True,random_state=0)
-
-# cv_indices = list( cross_val_split.split(features_first_round_molecules.iloc[train_and_val_index], table_first_round_molecules['Class_Label'].iloc[train_and_val_index], groups[train_and_val_index]) )
 
 print("Splitting data")
 
@@ -282,8 +182,8 @@ train_test_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
     groups
 )
 
-# 1. Identify which rows in the WHOLE table have missing PAMPA
-missing_pampa_mask = table_first_round_molecules['PAMPA'].isna()
+# 1. Identify which rows in the WHOLE table have missing PAMPA (label)
+missing_pampa_mask = table_first_round_molecules['Class_Label'].isna()
 indices_missing_pampa = np.where(missing_pampa_mask)[0]
 
 # 2. Find which of these ended up in the train_and_val_index
@@ -297,7 +197,7 @@ if len(rows_to_move) > 0:
     
     # 4. Sort indices to keep things tidy
     train_and_val_index.sort()
-    test_index.sort()
+    test_index.sort()  # allowing rows without label for the test dataset
 
 # Use this train/val split for training the GNN.
 train_val_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
@@ -306,6 +206,9 @@ train_val_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
     table_first_round_molecules['Class_Label'].iloc[train_and_val_index],
     groups[train_and_val_index]
 )
+
+train_index = train_and_val_index[train_index]
+val_index = train_and_val_index[val_index]
 
 # Create 5-fold cross-validation partition for Random Forest
 X_train_subset = features_from_table.iloc[train_and_val_index]
@@ -411,7 +314,7 @@ def train():
 
     for data in train_loader:  # Iterate in batches over the training dataset.
          out = model(data.x, data.edge_attr, data.edge_index, data.batch)  # Perform a single forward pass.
-         loss = loss_function(out, data.y)  # Compute the loss.
+         loss = loss_function(out.squeeze(), data.y)  # Compute the loss.
          loss.backward()  # Derive gradients.
          optimizer.step()  # Update parameters based on gradients.
          optimizer.zero_grad()  # Clear gradients.
@@ -430,10 +333,10 @@ def test(loader):
      return total_mae / total_samples  # calcualte MAE
 
 
-for epoch in range(1, 10):  # TODO (ASK): temp until running on GPU
+for epoch in range(1, 10):  # TODO (ASK): temp 10 epochs until running on GPU
     train()
     train_mae = test(train_loader)
     val_mae = test(validation_loader)
     test_mae = test(test_loader)
-    print(f'Epoch: {epoch:03d}, Train MAE: {train_mae:.4f}, Val MAE: {test_mae:.4f},  Test MAE: {test_mae:.4f}')
+    print(f'Epoch: {epoch:03d}, Train MAE: {train_mae:.4f}, Val MAE: {val_mae:.4f}, Test MAE: {test_mae:.4f}')
 
