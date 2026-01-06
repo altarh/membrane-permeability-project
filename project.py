@@ -14,6 +14,9 @@ from sklearn.model_selection import GroupShuffleSplit, StratifiedGroupKFold
 from data_loading import read_file_and_add_Class_Label
 from mol_properties import get_features_and_morgan_fingerprints
 from mol_to_GNN import molecule_to_graph
+from mol_properties import create_tanimoto_groups
+from k_fold_partition import create_tanimoto_kfold_partition
+from random_forest import train_and_evaluate_random_forest_regressor, encode_categorical_features
 
 try:
     from IPython.display import display
@@ -97,8 +100,6 @@ We will use the Tanimoto similarity, a custom metric for calculating similarity 
 
 
 """
-from mol_properties import create_tanimoto_groups
-from k_fold_partition import create_tanimoto_kfold_partition
 
 first_round_molecules_rdkit, features_first_round_molecules, first_round_molecules_morgan_fingerprints = get_features_and_morgan_fingerprints(table_first_round_molecules)
 
@@ -178,10 +179,105 @@ print(f"Created {n_groups} groups using tanimoto partition")
 
 print("Splitting data")
 
+# Define the feature columns we want to use from table_first_round_molecules
+FEATURE_COLUMNS = [
+    'Monomer_Length', 'Monomer_Length_in_Main_Chain', 'Molecule_Shape',
+    'MaxEStateIndex', 'MinEStateIndex', 'MaxAbsEStateIndex', 'MinAbsEStateIndex',
+    'qed', 'MolWt', 'HeavyAtomMolWt', 'ExactMolWt',
+    'NumValenceElectrons', 'NumRadicalElectrons',
+    'MaxPartialCharge', 'MinPartialCharge', 'MaxAbsPartialCharge', 'MinAbsPartialCharge',
+    'FpDensityMorgan1', 'FpDensityMorgan2', 'FpDensityMorgan3',
+    'BCUT2D_MWHI', 'BCUT2D_MWLOW', 'BCUT2D_CHGHI', 'BCUT2D_CHGLO',
+    'BCUT2D_LOGPHI', 'BCUT2D_LOGPLOW', 'BCUT2D_MRHI', 'BCUT2D_MRLOW',
+    'BalabanJ', 'BertzCT',
+    'Chi0', 'Chi0n', 'Chi0v', 'Chi1', 'Chi1n', 'Chi1v',
+    'Chi2n', 'Chi2v', 'Chi3n', 'Chi3v', 'Chi4n', 'Chi4v',
+    'HallKierAlpha', 'Ipc', 'Kappa1', 'Kappa2', 'Kappa3', 'LabuteASA',
+    'PEOE_VSA1', 'PEOE_VSA10', 'PEOE_VSA11', 'PEOE_VSA12', 'PEOE_VSA13', 'PEOE_VSA14',
+    'PEOE_VSA2', 'PEOE_VSA3', 'PEOE_VSA4', 'PEOE_VSA5', 'PEOE_VSA6', 'PEOE_VSA7',
+    'PEOE_VSA8', 'PEOE_VSA9',
+    'SMR_VSA1', 'SMR_VSA10', 'SMR_VSA2', 'SMR_VSA3', 'SMR_VSA4', 'SMR_VSA5',
+    'SMR_VSA6', 'SMR_VSA7', 'SMR_VSA8', 'SMR_VSA9',
+    'SlogP_VSA1', 'SlogP_VSA10', 'SlogP_VSA11', 'SlogP_VSA12',
+    'SlogP_VSA2', 'SlogP_VSA3', 'SlogP_VSA4', 'SlogP_VSA5', 'SlogP_VSA6',
+    'SlogP_VSA7', 'SlogP_VSA8', 'SlogP_VSA9', 'TPSA',
+    'EState_VSA1', 'EState_VSA10', 'EState_VSA11', 'EState_VSA2', 'EState_VSA3',
+    'EState_VSA4', 'EState_VSA5', 'EState_VSA6', 'EState_VSA7', 'EState_VSA8', 'EState_VSA9',
+    'VSA_EState1', 'VSA_EState10', 'VSA_EState2', 'VSA_EState3', 'VSA_EState4',
+    'VSA_EState5', 'VSA_EState6', 'VSA_EState7', 'VSA_EState8', 'VSA_EState9',
+    'FractionCSP3', 'HeavyAtomCount', 'NHOHCount', 'NOCount',
+    'NumAliphaticCarbocycles', 'NumAliphaticHeterocycles', 'NumAliphaticRings',
+    'NumAromaticCarbocycles', 'NumAromaticHeterocycles', 'NumAromaticRings',
+    'NumHAcceptors', 'NumHDonors', 'NumHeteroatoms', 'NumRotatableBonds',
+    'NumSaturatedCarbocycles', 'NumSaturatedHeterocycles', 'NumSaturatedRings', 'RingCount',
+    'MolLogP', 'MolMR',
+    'fr_Al_COO', 'fr_Al_OH', 'fr_Al_OH_noTert', 'fr_ArN', 'fr_Ar_COO', 'fr_Ar_N',
+    'fr_Ar_NH', 'fr_Ar_OH', 'fr_COO', 'fr_COO2', 'fr_C_O', 'fr_C_O_noCOO', 'fr_C_S',
+    'fr_HOCCN', 'fr_Imine', 'fr_NH0', 'fr_NH1', 'fr_NH2', 'fr_N_O',
+    'fr_Ndealkylation1', 'fr_Ndealkylation2', 'fr_Nhpyrrole', 'fr_SH',
+    'fr_aldehyde', 'fr_alkyl_carbamate', 'fr_alkyl_halide', 'fr_allylic_oxid',
+    'fr_amide', 'fr_amidine', 'fr_aniline', 'fr_aryl_methyl', 'fr_azide', 'fr_azo',
+    'fr_barbitur', 'fr_benzene', 'fr_benzodiazepine', 'fr_bicyclic', 'fr_diazo',
+    'fr_dihydropyridine', 'fr_epoxide', 'fr_ester', 'fr_ether', 'fr_furan', 'fr_guanido',
+    'fr_halogen', 'fr_hdrzine', 'fr_hdrzone', 'fr_imidazole', 'fr_imide', 'fr_isocyan',
+    'fr_isothiocyan', 'fr_ketone', 'fr_ketone_Topliss', 'fr_lactam', 'fr_lactone',
+    'fr_methoxy', 'fr_morpholine', 'fr_nitrile', 'fr_nitro', 'fr_nitro_arom',
+    'fr_nitro_arom_nonortho', 'fr_nitroso', 'fr_oxazole', 'fr_oxime',
+    'fr_para_hydroxylation', 'fr_phenol', 'fr_phenol_noOrthoHbond',
+    'fr_phos_acid', 'fr_phos_ester', 'fr_piperdine', 'fr_piperzine',
+    'fr_priamide', 'fr_prisulfonamd', 'fr_pyridine', 'fr_quatN',
+    'fr_sulfide', 'fr_sulfonamd', 'fr_sulfone', 'fr_term_acetylene',
+    'fr_tetrazole', 'fr_thiazole', 'fr_thiocyan', 'fr_thiophene',
+    'fr_unbrch_alkane', 'fr_urea',
+    'PC1', 'PC2', 'CHCl3_3DPSA', 'H2O_3DPSA'
+]
+
+# Extract features from table_first_round_molecules
+features_from_table = table_first_round_molecules[FEATURE_COLUMNS]
+
+print(f"Extracted {len(FEATURE_COLUMNS)} features from table_first_round_molecules")
+print(f"Original feature matrix shape: {features_from_table.shape}")
+
+# Encode categorical features
+features_from_table, categorical_encoders = encode_categorical_features(
+    features_from_table, 
+    fit=True
+)
+
+print(f"\nFinal encoded feature matrix shape: {features_from_table.shape}")
+print(f"All columns numeric: {features_from_table.select_dtypes(include=[np.number]).shape[1] == features_from_table.shape[1]}")
+
+# print("\n=== FEATURE DIAGNOSTICS ===")
+# for col in features_from_table.columns:
+#     col_data = features_from_table[col]
+#     has_inf = np.isinf(col_data).any()
+#     has_nan = col_data.isna().any()
+#     col_max = col_data.max()
+#     col_min = col_data.min()
+    
+#     if has_inf or has_nan or col_max > 1e15 or col_min < -1e15:
+#         print(f"{col}: inf={has_inf}, nan={has_nan}, range=[{col_min:.2e}, {col_max:.2e}]")
+
+
+print("\nApplying log transformation to heavily skewed features...")
+
+if 'Ipc' in features_from_table.columns:
+    # Check the range
+    ipc_min = features_from_table['Ipc'].min()
+    ipc_max = features_from_table['Ipc'].max()
+    print(f"Ipc range: [{ipc_min:.2e}, {ipc_max:.2e}]")
+    
+    # Log transform (add small constant to avoid log(0) log(1+x))
+    features_from_table['Ipc'] = np.log1p(features_from_table['Ipc'])
+    
+    new_min = features_from_table['Ipc'].min()
+    new_max = features_from_table['Ipc'].max()
+    print(f"After log transform: [{new_min:.2f}, {new_max:.2f}]")
+
 # Create train/test split (80/20) respecting Tanimoto groups
 train_test_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
 [(train_and_val_index, test_index)] = train_test_split.split(
-    features_first_round_molecules,
+    features_from_table,
     table_first_round_molecules['Class_Label'],
     groups
 )
@@ -194,22 +290,25 @@ indices_missing_pampa = np.where(missing_pampa_mask)[0]
 rows_to_move = np.intersect1d(train_and_val_index, indices_missing_pampa)
 
 if len(rows_to_move) > 0:
-    print(f"Deleting {len(rows_to_move)} rows with missing PAMPA from Train and eval.")
-
+    print(f"\nDeleting {len(rows_to_move)} rows with missing PAMPA from Train and eval.")
+    
     # 3. Remove them from train_and_val_index
     train_and_val_index = np.setdiff1d(train_and_val_index, rows_to_move)
-
+    
     # 4. Sort indices to keep things tidy
     train_and_val_index.sort()
     test_index.sort()
 
 # Use this train/val split for training the GNN.
-train_val_split = GroupShuffleSplit(n_splits=1,test_size=0.2,random_state=0)
-[(train_index, val_index)] = train_val_split.split(features_first_round_molecules.iloc[train_and_val_index],table_first_round_molecules['Class_Label'].iloc[train_and_val_index],groups[train_and_val_index])
+train_val_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
+[(train_index, val_index)] = train_val_split.split(
+    features_from_table.iloc[train_and_val_index],
+    table_first_round_molecules['Class_Label'].iloc[train_and_val_index],
+    groups[train_and_val_index]
+)
 
 # Create 5-fold cross-validation partition for Random Forest
-
-X_train_subset = features_first_round_molecules.iloc[train_and_val_index]
+X_train_subset = features_from_table.iloc[train_and_val_index]
 y_train_subset = table_first_round_molecules['Class_Label'].iloc[train_and_val_index]
 groups_train_subset = groups[train_and_val_index]
 
@@ -221,26 +320,11 @@ train_cv_folds = create_tanimoto_kfold_partition(
     random_state=0
 )
 
-
-"""3.	Justify the choice of threshold used for Tamimoto similarity.
-
-4.	Explain how the algorithm prevents two molecules with high Tamimoto similarity from ending up in the same split.
-
-# Part III: Training a tree ensemble model on the Dataset.
-
-5.	 Throughout the rest of the homework, the metric for model selection and evaluation is chosen to be the Area under the Precision Recall Curve (implemented as the “average_precision_score” in sklearn). Justify this choice of metric given the problem considered.
-
-6.	Using sklearn’s HistGradBoosting (or xgboost/LightGBM), build a Gradient Boosted Tree classifier. Select the optimal hyperparameters (number of iterations; learning rate; regularization strength; number of leaves) by cross-validation using the provided group split. Calculate the precision-recall curve over the test set, display it and report the AUCPR. Comment on the quality of the predictions.
-"""
-
-from random_forest import train_and_evaluate_random_forest_regressor
-
 # Train and evaluate Random Forest with 5-fold CV
 print("\n" + "="*70)
 print("RANDOM FOREST REGRESSION")
 print("="*70)
 
-# 3. Pass the SAME subset to the training function
 best_random_forest_model = train_and_evaluate_random_forest_regressor(
     X=X_train_subset, 
     y=y_train_subset,
