@@ -228,10 +228,14 @@ print("\n" + "="*70)
 print("RANDOM FOREST REGRESSION")
 print("="*70)
 
-best_random_forest_model = train_and_evaluate_random_forest_regressor(
-    X=X_train_subset, 
+missing_pampa_mask = table_first_round_molecules['Class_Label'].isna()
+X_no_pampa = features_from_table[missing_pampa_mask]
+
+best_random_forest_model, pampa_predictions = train_and_evaluate_random_forest_regressor(
+    X=X_train_subset,
     y=y_train_subset,
     cv_indices=train_cv_folds,
+    X_prediction=X_no_pampa
 )
 
 
@@ -357,7 +361,15 @@ def test(loader):
     return (total_mae / total_samples, total_mse / total_samples, correct_preds / total_samples)  # calcualte MAE, MSE and accuracy
 
 
-for epoch in range(1, 10):  # TODO (ASK): temp 10 epochs until running on GPU
+import copy  # Needed for deepcopy
+
+# Configuration
+patience = 5
+best_val_mae = np.inf
+patience_counter = 0
+best_model_weights = None
+
+for epoch in range(1, 20):  # Increased range to allow early stopping to work
     train()
     train_results = test(train_loader)
     val_results = test(validation_loader)
@@ -366,3 +378,32 @@ for epoch in range(1, 10):  # TODO (ASK): temp 10 epochs until running on GPU
     print(f'\t\tTrain MAE: {train_results[0]:.4f}, Val MAE: {val_results[0]:.4f}, Test MAE: {test_results[0]:.4f}')
     print(f'\t\tTrain MSE: {train_results[1]:.4f}, Val MSE: {val_results[1]:.4f}, Test MSE: {test_results[1]:.4f}')
     print(f'\t\tTrain Acc: {train_results[2]:.4f}, Val Acc: {val_results[2]:.4f}, Test Acc: {test_results[2]:.4f}')
+
+    train_mae = train_results[0]
+    val_mae = val_results[0]
+    test_mae = test_results[0]
+
+    # --- Early Stopping Logic ---
+    if val_mae < best_val_mae:
+        # 1. Improvement found: Update best score
+        best_val_mae = val_mae
+        # 2. Reset patience counter
+        patience_counter = 0
+        # 3. Save a DEEP COPY of the weights (not a pointer/reference)
+        best_model_weights = copy.deepcopy(model.state_dict())
+    else:
+        # No improvement
+        patience_counter += 1
+        print(f"--> No improvement. Patience: {patience_counter}/{patience}")
+
+        if patience_counter >= patience:
+            print("--> Early stopping triggered!")
+            # 4. Restore the best weights found
+            model.load_state_dict(best_model_weights)
+            break
+
+# Ensure the model has the best weights if the loop finishes without triggering early stop
+if best_model_weights is not None:
+    model.load_state_dict(best_model_weights)
+    print(f"Loaded best model weights with Val MAE: {best_val_mae:.4f}")
+
