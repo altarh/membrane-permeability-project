@@ -319,7 +319,12 @@ Note that here, we don't use the edge features at all
 """
 from CNN import GCN
 
+# Check for GPU availability
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
+
 model = GCN(dataset.num_node_features, hidden_channels=64)
+model = model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 loss_function = torch.nn.L1Loss()
 
@@ -332,11 +337,12 @@ def train():
     model.train()
 
     for data in train_loader:  # Iterate in batches over the training dataset.
-         out = model(data.x, data.edge_attr, data.edge_index, data.batch)  # Perform a single forward pass.
-         loss = loss_function(out.squeeze(), data.y)  # Compute the loss.
-         loss.backward()  # Derive gradients.
-         optimizer.step()  # Update parameters based on gradients.
-         optimizer.zero_grad()  # Clear gradients.
+        data = data.to(device)
+        out = model(data.x, data.edge_attr, data.edge_index, data.batch)  # Perform a single forward pass.
+        loss = loss_function(out.squeeze(), data.y)  # Compute the loss.
+        loss.backward()  # Derive gradients.
+        optimizer.step()  # Update parameters based on gradients.
+        optimizer.zero_grad()  # Clear gradients.
 
 
 def test(loader):
@@ -347,6 +353,7 @@ def test(loader):
     total_samples = 0
 
     for data in loader:  # Iterate in batches over the training/test dataset.
+        data = data.to(device)
         out = model(data.x, data.edge_attr, data.edge_index, data.batch)
         mae = torch.nn.functional.l1_loss(out.squeeze(), data.y.float(), reduction='sum')  # computes the sum of absolute errors
         mse = torch.nn.functional.mse_loss(out.squeeze(), data.y.float(), reduction='sum')  # computes the sum of squared errors
