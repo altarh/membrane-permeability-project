@@ -307,11 +307,10 @@ print(f"Test positive proportion: {test_positive_prop:.4f}")
 print()
 
 # Create a DataLoader for batching
-batch_size = 2
-train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
-validation_loader = DataLoader(validation_dataset, batch_size=16, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
-evaluation_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+validation_loader = DataLoader(validation_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+evaluation_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
 """
 Step 2: Define a simple Graph Convolution Network
