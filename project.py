@@ -414,3 +414,36 @@ if best_model_weights is not None:
     model.load_state_dict(best_model_weights)
     print(f"Loaded best model weights with Val MAE: {best_val_mae:.4f}")
 
+def plot_confusion_matrix(loader):
+    from sklearn.metrics import confusion_matrix
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+
+    all_preds = []
+    all_labels = []
+
+    with torch.no_grad():
+        for data in loader:
+            data = data.to(next(model.parameters()).device)
+            out = model(data.x, data.edge_attr, data.edge_index, data.batch)  # Perform a single forward pass.
+            true_binary = (data.y >= -6.0)
+            pred_binary = (out.squeeze() >= -6.0)
+
+            all_preds.append(pred_binary.cpu())
+            all_labels.append(true_binary.cpu())
+
+    all_preds = torch.cat(all_preds).numpy()
+    all_labels = torch.cat(all_labels).numpy()
+
+    cm = confusion_matrix(all_labels, all_preds)
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False)
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+    plt.title('Confusion Matrix')
+    plt.show()
+
+print("\nFinal evaluation on evaluation set:")
+final_test_results = test(evaluation_loader)
+print(f'\t\tTest MAE: {final_test_results[0]:.4f}, Test MSE: {final_test_results[1]:.4f}, Test Acc: {final_test_results[2]:.4f}')
+plot_confusion_matrix(evaluation_loader)
