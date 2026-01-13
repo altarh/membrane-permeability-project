@@ -275,7 +275,11 @@ Step 1: Convert data into PyTorch Geometric Dataset
 from CNN import CustomGraphDataset
 from torch_geometric.loader import DataLoader
 
-print(f"Building GNN")
+print("\n" + "="*70)
+print("GRAPH CONVOLUTION NETWORK")
+print("="*70)
+
+print(f"\nBuilding GNN\n")
 
 first_round_molecules_graph = [molecule_to_graph(mol) for mol in first_round_molecules_rdkit]
 
@@ -286,6 +290,17 @@ train_dataset = dataset[train_index]
 validation_dataset = dataset[val_index]
 test_dataset = dataset[test_index]
 
+# Report proportion of positive labels (with threshold -6.0)
+full_positive_prop = (table_first_round_molecules['Class_Label'] >= -6).mean()
+train_positive_prop = (table_first_round_molecules['Class_Label'].iloc[train_index] >= -6).mean()
+val_positive_prop = (table_first_round_molecules['Class_Label'].iloc[val_index] >= -6).mean()
+test_positive_prop = (table_first_round_molecules['Class_Label'].iloc[test_index] >= -6).mean()
+
+print(f"Full dataset positive proportion: {full_positive_prop:.4f}")
+print(f"Train positive proportion: {train_positive_prop:.4f}")
+print(f"Validation positive proportion: {val_positive_prop:.4f}")
+print(f"Test positive proportion: {test_positive_prop:.4f}")
+print()
 
 # Create a DataLoader for batching
 batch_size = 2
@@ -321,22 +336,33 @@ def train():
 
 
 def test(loader):
-     model.eval()
-     total_mae = 0
-     total_samples = 0
-     for data in loader:  # Iterate in batches over the training/test dataset.
-         out = model(data.x, data.edge_attr, data.edge_index, data.batch)
-         mae = torch.nn.functional.l1_loss(out.squeeze(), data.y.float(), reduction='sum')  # computes the sum of absolute errors
-         total_mae += mae.item()
-         total_samples += data.y.size(0)  # Count the number of samples.
+    model.eval()
+    total_mae = 0
+    total_mse = 0
+    correct_preds = 0
+    total_samples = 0
 
-     return total_mae / total_samples  # calcualte MAE
+    for data in loader:  # Iterate in batches over the training/test dataset.
+        out = model(data.x, data.edge_attr, data.edge_index, data.batch)
+        mae = torch.nn.functional.l1_loss(out.squeeze(), data.y.float(), reduction='sum')  # computes the sum of absolute errors
+        mse = torch.nn.functional.mse_loss(out.squeeze(), data.y.float(), reduction='sum')  # computes the sum of squared errors
+        total_mae += mae.item()
+        total_mse += mse.item()
+        total_samples += data.y.size(0)  # Count the number of samples.
+
+        true_binary = (data.y >= -6.0)
+        pred_binary = (out.squeeze() >= -6.0)
+        correct_preds += (true_binary == pred_binary).sum().item()
+
+    return (total_mae / total_samples, total_mse / total_samples, correct_preds / total_samples)  # calcualte MAE, MSE and accuracy
 
 
 for epoch in range(1, 10):  # TODO (ASK): temp 10 epochs until running on GPU
     train()
-    train_mae = test(train_loader)
-    val_mae = test(validation_loader)
-    test_mae = test(test_loader)
-    print(f'Epoch: {epoch:03d}, Train MAE: {train_mae:.4f}, Val MAE: {val_mae:.4f}, Test MAE: {test_mae:.4f}')
-
+    train_results = test(train_loader)
+    val_results = test(validation_loader)
+    test_results = test(test_loader)
+    print(f'Epoch: {epoch:03d}:')
+    print(f'\t\tTrain MAE: {train_results[0]:.4f}, Val MAE: {val_results[0]:.4f}, Test MAE: {test_results[0]:.4f}')
+    print(f'\t\tTrain MSE: {train_results[1]:.4f}, Val MSE: {val_results[1]:.4f}, Test MSE: {test_results[1]:.4f}')
+    print(f'\t\tTrain Acc: {train_results[2]:.4f}, Val Acc: {val_results[2]:.4f}, Test Acc: {test_results[2]:.4f}')
