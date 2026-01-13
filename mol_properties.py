@@ -147,15 +147,15 @@ def get_features_and_morgan_fingerprints(molecules_table):
     molecules_table = molecules_table.iloc[molecules_success].reset_index()
     molecules_rdkit = [mol for mol in molecules_rdkit if mol is not None]
 
-    print('Extracting chemical features/descriptors for each molecule...')
-    molecules_features = extract_chemical_features(molecules_rdkit)
-    print('Done.')
+    # print('Extracting chemical features/descriptors for each molecule...')
+    # molecules_features = extract_chemical_features(molecules_rdkit)
+    # print('Done.')
 
     print('Calculating Morgan fingerprints...')
     molecules_morgan_fingerprints = calculate_morgan_fingerprints(molecules_rdkit)
     print('Done.')
 
-    return molecules_rdkit, molecules_features, molecules_morgan_fingerprints
+    return molecules_rdkit, molecules_morgan_fingerprints
 
 def calculate_tanimoto_similarities(morgan_fingerprints):
     """

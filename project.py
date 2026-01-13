@@ -70,7 +70,7 @@ We will use the Tanimoto similarity, a custom metric for calculating similarity 
 """
 
 # We are assuming all molecules are successfully parsed into RDKIT Molecule objects
-first_round_molecules_rdkit, features_first_round_molecules, first_round_molecules_morgan_fingerprints = get_features_and_morgan_fingerprints(table_first_round_molecules)
+first_round_molecules_rdkit, first_round_molecules_morgan_fingerprints = get_features_and_morgan_fingerprints(table_first_round_molecules)
 
 # Create Tanimoto groups (uses median cutoff adaptively)
 print(f"Calculating tanimoto similarities...")
@@ -228,10 +228,14 @@ print("\n" + "="*70)
 print("RANDOM FOREST REGRESSION")
 print("="*70)
 
-best_random_forest_model = train_and_evaluate_random_forest_regressor(
-    X=X_train_subset, 
+missing_pampa_mask = table_first_round_molecules['Class_Label'].isna()
+X_no_pampa = features_from_table[missing_pampa_mask]
+
+best_random_forest_model, pampa_predictions = train_and_evaluate_random_forest_regressor(
+    X=X_train_subset,
     y=y_train_subset,
     cv_indices=train_cv_folds,
+    X_prediction=X_no_pampa
 )
 
 
@@ -275,7 +279,11 @@ Step 1: Convert data into PyTorch Geometric Dataset
 from CNN import CustomGraphDataset
 from torch_geometric.loader import DataLoader
 
-print(f"Building GNN")
+print("\n" + "="*70)
+print("GRAPH CONVOLUTION NETWORK")
+print("="*70)
+
+print(f"\nBuilding GNN\n")
 
 first_round_molecules_graph = [molecule_to_graph(mol) for mol in first_round_molecules_rdkit]
 
@@ -286,6 +294,17 @@ train_dataset = dataset[train_index]
 validation_dataset = dataset[val_index]
 test_dataset = dataset[test_index]
 
+# Report proportion of positive labels (with threshold -6.0)
+full_positive_prop = (table_first_round_molecules['Class_Label'] >= -6).mean()
+train_positive_prop = (table_first_round_molecules['Class_Label'].iloc[train_index] >= -6).mean()
+val_positive_prop = (table_first_round_molecules['Class_Label'].iloc[val_index] >= -6).mean()
+test_positive_prop = (table_first_round_molecules['Class_Label'].iloc[test_index] >= -6).mean()
+
+print(f"Full dataset positive proportion: {full_positive_prop:.4f}")
+print(f"Train positive proportion: {train_positive_prop:.4f}")
+print(f"Validation positive proportion: {val_positive_prop:.4f}")
+print(f"Test positive proportion: {test_positive_prop:.4f}")
+print()
 
 # Create a DataLoader for batching
 batch_size = 2
@@ -300,7 +319,12 @@ Note that here, we don't use the edge features at all
 """
 from CNN import GCN
 
+# Check for GPU availability
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
+
 model = GCN(dataset.num_node_features, hidden_channels=64)
+model = model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 loss_function = torch.nn.L1Loss()
 
@@ -313,28 +337,38 @@ def train():
     model.train()
 
     for data in train_loader:  # Iterate in batches over the training dataset.
-         out = model(data.x, data.edge_attr, data.edge_index, data.batch)  # Perform a single forward pass.
-         loss = loss_function(out.squeeze(), data.y)  # Compute the loss.
-         loss.backward()  # Derive gradients.
-         optimizer.step()  # Update parameters based on gradients.
-         optimizer.zero_grad()  # Clear gradients.
+        data = data.to(device)
+        out = model(data.x, data.edge_attr, data.edge_index, data.batch)  # Perform a single forward pass.
+        loss = loss_function(out.squeeze(), data.y)  # Compute the loss.
+        loss.backward()  # Derive gradients.
+        optimizer.step()  # Update parameters based on gradients.
+        optimizer.zero_grad()  # Clear gradients.
 
 
 def test(loader):
-     model.eval()
-     total_mae = 0
-     total_samples = 0
-     for data in loader:  # Iterate in batches over the training/test dataset.
-         out = model(data.x, data.edge_attr, data.edge_index, data.batch)
-         mae = torch.nn.functional.l1_loss(out.squeeze(), data.y.float(), reduction='sum')  # computes the sum of absolute errors
-         total_mae += mae.item()
-         total_samples += data.y.size(0)  # Count the number of samples.
+    model.eval()
+    total_mae = 0
+    total_mse = 0
+    correct_preds = 0
+    total_samples = 0
 
-     return total_mae / total_samples  # calcualte MAE
+    for data in loader:  # Iterate in batches over the training/test dataset.
+        data = data.to(device)
+        out = model(data.x, data.edge_attr, data.edge_index, data.batch)
+        mae = torch.nn.functional.l1_loss(out.squeeze(), data.y.float(), reduction='sum')  # computes the sum of absolute errors
+        mse = torch.nn.functional.mse_loss(out.squeeze(), data.y.float(), reduction='sum')  # computes the sum of squared errors
+        total_mae += mae.item()
+        total_mse += mse.item()
+        total_samples += data.y.size(0)  # Count the number of samples.
+
+        true_binary = (data.y >= -6.0)
+        pred_binary = (out.squeeze() >= -6.0)
+        correct_preds += (true_binary == pred_binary).sum().item()
+
+    return (total_mae / total_samples, total_mse / total_samples, correct_preds / total_samples)  # calcualte MAE, MSE and accuracy
 
 
 import copy  # Needed for deepcopy
-import numpy as np
 
 # Configuration
 patience = 5
@@ -344,11 +378,17 @@ best_model_weights = None
 
 for epoch in range(1, 100):  # Increased range to allow early stopping to work
     train()
-    train_mae = test(train_loader)
-    val_mae = test(validation_loader)
-    test_mae = test(test_loader)
+    train_results = test(train_loader)
+    val_results = test(validation_loader)
+    test_results = test(test_loader)
+    print(f'Epoch: {epoch:03d}:')
+    print(f'\t\tTrain MAE: {train_results[0]:.4f}, Val MAE: {val_results[0]:.4f}, Test MAE: {test_results[0]:.4f}')
+    print(f'\t\tTrain MSE: {train_results[1]:.4f}, Val MSE: {val_results[1]:.4f}, Test MSE: {test_results[1]:.4f}')
+    print(f'\t\tTrain Acc: {train_results[2]:.4f}, Val Acc: {val_results[2]:.4f}, Test Acc: {test_results[2]:.4f}')
 
-    print(f'Epoch: {epoch:03d}, Train MAE: {train_mae:.4f}, Val MAE: {val_mae:.4f}, Test MAE: {test_mae:.4f}')
+    train_mae = train_results[0]
+    val_mae = val_results[0]
+    test_mae = test_results[0]
 
     # --- Early Stopping Logic ---
     if val_mae < best_val_mae:
