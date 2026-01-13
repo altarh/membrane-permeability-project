@@ -293,6 +293,11 @@ dataset = CustomGraphDataset(first_round_molecules_graph, table_first_round_mole
 train_dataset = dataset[train_index]
 validation_dataset = dataset[val_index]
 test_dataset = dataset[test_index]
+test_only_with_labels_indices = [
+    i for i, d in enumerate(test_dataset)
+    if not torch.isnan(d.y)
+]
+evaluation_dataset = test_dataset[test_only_with_labels_indices]
 
 # Report proportion of positive labels (with threshold -6.0)
 full_positive_prop = (table_first_round_molecules['Class_Label'] >= -6).mean()
@@ -310,7 +315,7 @@ print()
 train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 validation_loader = DataLoader(validation_dataset, batch_size=64, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
-evaluation_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+evaluation_loader = DataLoader(evaluation_dataset, batch_size=64, shuffle=False)
 
 """
 Step 2: Define a simple Graph Convolution Network
@@ -379,7 +384,7 @@ for epoch in range(1, 100):  # Increased range to allow early stopping to work
     train()
     train_results = test(train_loader)
     val_results = test(validation_loader)
-    test_results = test(test_loader)
+    test_results = test(evaluation_loader)
     print(f'Epoch: {epoch:03d}:')
     print(f'\t\tTrain MAE: {train_results[0]:.4f}, Val MAE: {val_results[0]:.4f}, Test MAE: {test_results[0]:.4f}')
     print(f'\t\tTrain MSE: {train_results[1]:.4f}, Val MSE: {val_results[1]:.4f}, Test MSE: {test_results[1]:.4f}')
@@ -440,6 +445,7 @@ def plot_confusion_matrix(loader):
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
     plt.title('Confusion Matrix')
+    plt.savefig("confusion_matrix.png")
     plt.show()
 
 print("\nFinal evaluation on evaluation set:")
