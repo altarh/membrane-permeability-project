@@ -333,10 +333,44 @@ def test(loader):
      return total_mae / total_samples  # calcualte MAE
 
 
-for epoch in range(1, 10):  # TODO (ASK): temp 10 epochs until running on GPU
+import copy  # Needed for deepcopy
+import numpy as np
+
+# Configuration
+patience = 5
+best_val_mae = np.inf
+patience_counter = 0
+best_model_weights = None
+
+for epoch in range(1, 20):  # Increased range to allow early stopping to work
     train()
     train_mae = test(train_loader)
     val_mae = test(validation_loader)
     test_mae = test(test_loader)
+
     print(f'Epoch: {epoch:03d}, Train MAE: {train_mae:.4f}, Val MAE: {val_mae:.4f}, Test MAE: {test_mae:.4f}')
+
+    # --- Early Stopping Logic ---
+    if val_mae < best_val_mae:
+        # 1. Improvement found: Update best score
+        best_val_mae = val_mae
+        # 2. Reset patience counter
+        patience_counter = 0
+        # 3. Save a DEEP COPY of the weights (not a pointer/reference)
+        best_model_weights = copy.deepcopy(model.state_dict())
+    else:
+        # No improvement
+        patience_counter += 1
+        print(f"--> No improvement. Patience: {patience_counter}/{patience}")
+
+        if patience_counter >= patience:
+            print("--> Early stopping triggered!")
+            # 4. Restore the best weights found
+            model.load_state_dict(best_model_weights)
+            break
+
+# Ensure the model has the best weights if the loop finishes without triggering early stop
+if best_model_weights is not None:
+    model.load_state_dict(best_model_weights)
+    print(f"Loaded best model weights with Val MAE: {best_val_mae:.4f}")
 
