@@ -70,7 +70,7 @@ We will use the Tanimoto similarity, a custom metric for calculating similarity 
 """
 
 # We are assuming all molecules are successfully parsed into RDKIT Molecule objects
-first_round_molecules_rdkit, features_first_round_molecules, first_round_molecules_morgan_fingerprints = get_features_and_morgan_fingerprints(table_first_round_molecules)
+first_round_molecules_rdkit, first_round_molecules_morgan_fingerprints = get_features_and_morgan_fingerprints(table_first_round_molecules)
 
 # Create Tanimoto groups (uses median cutoff adaptively)
 print(f"Calculating tanimoto similarities...")
