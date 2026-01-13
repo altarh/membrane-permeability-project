@@ -342,7 +342,7 @@ best_val_mae = np.inf
 patience_counter = 0
 best_model_weights = None
 
-for epoch in range(1, 20):  # Increased range to allow early stopping to work
+for epoch in range(1, 100):  # Increased range to allow early stopping to work
     train()
     train_mae = test(train_loader)
     val_mae = test(validation_loader)
