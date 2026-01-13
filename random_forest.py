@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-def train_and_evaluate_random_forest_regressor(X, y, cv_indices, n_estimators=500, random_state=0):
+def train_and_evaluate_random_forest_regressor(X, y, cv_indices, X_prediction=None, n_estimators=500, random_state=0):
     """
     Train and evaluate Random Forest Regressor, returning the model with the lowest MAE.
     """
@@ -80,6 +80,23 @@ def train_and_evaluate_random_forest_regressor(X, y, cv_indices, n_estimators=50
     
     print(f"{'='*70}\n")
 
+    predictions = None
+    if X_prediction is not None and best_model is not None:
+        print("="*70)
+        print(f"PREDICTING ON {len(X_prediction)} UNLABELED MOLECULES (No PAMPA)")
+        print("="*70)
+        
+        predictions = best_model.predict(X_prediction)
+        
+        # Display first few predictions as a sanity check
+        print("\nFirst 5 predictions:")
+        for i, pred in enumerate(predictions[:5]):
+            print(f"Molecule {X_prediction.index[i]}: {pred:.4f}")
+        print(f"\nPredictions generated successfully.\n")
+
+    if X_prediction is not None:
+        return best_model, predictions
+        
     return best_model
 
 def encode_categorical_features(features_df, encoders=None, fit=True):

@@ -228,10 +228,14 @@ print("\n" + "="*70)
 print("RANDOM FOREST REGRESSION")
 print("="*70)
 
-best_random_forest_model = train_and_evaluate_random_forest_regressor(
-    X=X_train_subset, 
+missing_pampa_mask = table_first_round_molecules['Class_Label'].isna()
+X_no_pampa = features_from_table[missing_pampa_mask]
+
+best_random_forest_model, pampa_predictions = train_and_evaluate_random_forest_regressor(
+    X=X_train_subset,
     y=y_train_subset,
     cv_indices=train_cv_folds,
+    X_prediction=X_no_pampa
 )
 
 
