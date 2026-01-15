@@ -329,7 +329,7 @@ print(f"Using device: {device}")
 
 model = GCN(dataset.num_node_features, hidden_channels=64)
 model = model.to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 loss_function = torch.nn.L1Loss()
 
 """# Step 3: Train the model!
@@ -375,7 +375,7 @@ def test(loader):
 import copy  # Needed for deepcopy
 
 # Configuration
-patience = 5
+patience = 20
 best_val_mae = np.inf
 patience_counter = 0
 best_model_weights = None
