@@ -24,6 +24,11 @@ except ImportError:
     def display(obj):
         print(obj)  # Fallback to print
 
+PROJECT_SEED = 1
+np.random.seed(PROJECT_SEED)
+torch.manual_seed(PROJECT_SEED)
+torch.backends.cudnn.deterministic = True
+
 # table_first_round_molecules   =  pd.read_excel( '/content/MLCB_2024_HW2_Data/training_table.xlsx',skiprows=1,sheet_name='S1B')
 table_first_round_molecules = read_file_and_add_Class_Label('CycPeptMPDB_Peptide_All.csv')
 
