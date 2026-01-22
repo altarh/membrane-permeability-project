@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-def train_and_evaluate_random_forest_regressor(X, y, cv_indices, X_prediction=None, n_estimators=500, random_state=0):
+def train_and_evaluate_random_forest_regressor(X, y, cv_indices, X_prediction=None, n_estimators=500, random_state=None):
     """
     Train and evaluate Random Forest Regressor, returning the model with the lowest MAE.
     """
