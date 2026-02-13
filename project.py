@@ -348,3 +348,23 @@ print("\nFinal evaluation on evaluation set:")
 final_test_results = test(evaluation_loader)
 print(f'\t\tTest MAE: {final_test_results[0]:.4f}, Test MSE: {final_test_results[1]:.4f}, Test Acc: {final_test_results[2]:.4f}')
 plot_confusion_matrix(evaluation_loader)
+
+
+from compare_models import full_comparison_pipeline, save_comparison_results
+
+all_results = full_comparison_pipeline(
+    csv_path='CycPeptMPDB_Peptide_All.csv',
+    rf_model=best_random_forest_model,
+    gnn_model=model,
+    train_indices=train_index,
+    test_indices=test_index,
+    threshold=BINARY_CLASSIFICATION_THRESHOLD,
+    device=device
+)
+
+# Save results
+save_comparison_results(all_results, 'full_model_comparison.csv')
+
+print("\n" + "="*80)
+print("Model comparison complete!")
+print("="*80)
