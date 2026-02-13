@@ -221,7 +221,7 @@ def full_comparison_pipeline(csv_path='CycPeptMPDB_Peptide_All.csv',
     has_caco = 'Caco' in df.columns
 
     if has_caco:
-        print(f"Found Caco column: {df['Caco'].notna().sum()} non-null values")
+        print(f"Found Caco column: {df['Caco2'].notna().sum()} non-null values")
     else:
         print("Warning: No Caco column found in dataset")
 
