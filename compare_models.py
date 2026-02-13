@@ -218,7 +218,7 @@ def full_comparison_pipeline(csv_path='CycPeptMPDB_Peptide_All.csv',
     df = read_file_and_add_Class_Label(csv_path)
 
     # Check for Caco column
-    has_caco = 'Caco' in df.columns
+    has_caco = 'Caco2' in df.columns
 
     if has_caco:
         print(f"Found Caco column: {df['Caco2'].notna().sum()} non-null values")
@@ -267,13 +267,13 @@ def full_comparison_pipeline(csv_path='CycPeptMPDB_Peptide_All.csv',
 
         # 2. Compare on Caco labels if available
         if has_caco:
-            caco_mask = df['Caco'].notna()
+            caco_mask = df['Caco2'].notna()
             caco_indices = np.where(caco_mask)[0]
 
             if len(caco_indices) > 0:
                 X_caco = features_encoded.iloc[caco_indices]
                 dataset_caco = dataset[caco_indices]
-                y_caco = df['Caco'].iloc[caco_indices]
+                y_caco = df['Caco2'].iloc[caco_indices]
 
                 results_dict['caco'] = compare_models_on_caco(
                     rf_model, gnn_model, X_caco, dataset_caco,
