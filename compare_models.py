@@ -10,6 +10,7 @@ Compares performance on:
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import torch
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, accuracy_score
 from sklearn.ensemble import RandomForestRegressor
@@ -25,40 +26,29 @@ from random_forest import encode_categorical_features
 
 
 def calculate_metrics(y_true, y_pred, threshold=-6.0):
-    # Remove NaN values
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+
     mask = ~(np.isnan(y_true) | np.isnan(y_pred))
     y_true_clean = y_true[mask]
     y_pred_clean = y_pred[mask]
 
-    if len(y_true_clean) == 0:
-        return {
-            'r2': np.nan,
-            'mae': np.nan,
-            'mse': np.nan,
-            'rmse': np.nan,
-            'accuracy': np.nan,
-            'n_samples': 0
-        }
+    if y_true_clean.size == 0:
+        return {'r2': np.nan, 'mae': np.nan, 'mse': np.nan, 'rmse': np.nan,
+                'accuracy': np.nan, 'n_samples': 0}
 
-    # Regression metrics
     r2 = r2_score(y_true_clean, y_pred_clean)
     mae = mean_absolute_error(y_true_clean, y_pred_clean)
     mse = mean_squared_error(y_true_clean, y_pred_clean)
     rmse = np.sqrt(mse)
 
-    # Classification metrics (binary with threshold)
     y_true_binary = (y_true_clean >= threshold).astype(int)
     y_pred_binary = (y_pred_clean >= threshold).astype(int)
     accuracy = accuracy_score(y_true_binary, y_pred_binary)
 
-    return {
-        'r2': r2,
-        'mae': mae,
-        'mse': mse,
-        'rmse': rmse,
-        'accuracy': accuracy,
-        'n_samples': len(y_true_clean)
-    }
+    return {'r2': r2, 'mae': mae, 'mse': mse, 'rmse': rmse,
+            'accuracy': accuracy, 'n_samples': len(y_true_clean)}
+
 
 
 def predict_rf(model, X):
@@ -68,10 +58,9 @@ def predict_rf(model, X):
 def predict_gnn(model, dataset, device='cpu'):
     model.eval()
     model = model.to(device)
-
     loader = DataLoader(dataset, batch_size=64, shuffle=False)
-    predictions = []
 
+    predictions = []
     with torch.no_grad():
         for data in loader:
             data = data.to(device)
@@ -81,36 +70,78 @@ def predict_gnn(model, dataset, device='cpu'):
     return np.concatenate(predictions)
 
 
-def compare_models_on_pampa(rf_model, gnn_model, X_test, dataset_test, y_test, 
-                            threshold=-6.0, device='cpu'):
-    print("\n" + "="*80)
-    print("COMPARISON 1: Models on samples with PAMPA labels")
-    print("="*80)
+def compare_models_on_pampa(
+    rf_model,
+    gnn_model,
+    X_test,
+    dataset_test,
+    y_test,
+    threshold=-6.0,
+    device='cpu',
+    plot=True,
+    plot_path='true_vs_pred_pampa.png',
+    show_plot=True,
+):
 
-    # Get predictions
+    print("" + "=" * 80)
+    print("COMPARISON 1: Models on samples with PAMPA labels")
+    print("=" * 80)
+
     rf_pred = predict_rf(rf_model, X_test)
     gnn_pred = predict_gnn(gnn_model, dataset_test, device)
 
-    # Calculate metrics
-    rf_metrics = calculate_metrics(y_test.values if isinstance(y_test, pd.Series) else y_test, 
-                                   rf_pred, threshold)
-    gnn_metrics = calculate_metrics(y_test.values if isinstance(y_test, pd.Series) else y_test, 
-                                    gnn_pred, threshold)
+    y_arr = y_test.values if isinstance(y_test, pd.Series) else y_test
 
-    # Create comparison dataframe
+    rf_metrics = calculate_metrics(y_arr, rf_pred, threshold)
+    gnn_metrics = calculate_metrics(y_arr, gnn_pred, threshold)
+
     results = pd.DataFrame({
-        'Model': ['Random Forest', 'GNN'],
-        'R2': [rf_metrics['r2'], gnn_metrics['r2']],
-        'MAE': [rf_metrics['mae'], gnn_metrics['mae']],
-        'MSE': [rf_metrics['mse'], gnn_metrics['mse']],
-        'RMSE': [rf_metrics['rmse'], gnn_metrics['rmse']],
-        'Accuracy': [rf_metrics['accuracy'], gnn_metrics['accuracy']],
-        'N_Samples': [rf_metrics['n_samples'], gnn_metrics['n_samples']]
+    'Model': ['Random Forest', 'GNN'],
+    'R2': [rf_metrics['r2'], gnn_metrics['r2']],
+    'MAE': [rf_metrics['mae'], gnn_metrics['mae']],
+    'MSE': [rf_metrics['mse'], gnn_metrics['mse']],
+    'RMSE': [rf_metrics['rmse'], gnn_metrics['rmse']],
+    'Accuracy': [rf_metrics['accuracy'], gnn_metrics['accuracy']],
+    'N_Samples': [rf_metrics['n_samples'], gnn_metrics['n_samples']],
     })
 
-    print("\nResults:")
+
+    print("Results:")
     print(results.to_string(index=False))
-    print("\n" + "-"*80)
+    print("" + "-" * 80)
+
+    # Plot: True vs Predicted + identity line (y = x)
+    if plot:
+        y_true = np.asarray(y_arr, dtype=float)
+        rf_pred_arr = np.asarray(rf_pred, dtype=float)
+        gnn_pred_arr = np.asarray(gnn_pred, dtype=float)
+
+        mask = ~np.isnan(y_true)
+        y_true = y_true[mask]
+        rf_pred_arr = rf_pred_arr[mask]
+        gnn_pred_arr = gnn_pred_arr[mask]
+
+        plt.figure(figsize=(6, 6))
+        plt.scatter(y_true, rf_pred_arr, alpha=0.6, s=18, label='Random Forest')
+        plt.scatter(y_true, gnn_pred_arr, alpha=0.6, s=18, label='GNN')
+
+        min_v = float(np.min([y_true.min(), rf_pred_arr.min(), gnn_pred_arr.min()]))
+        max_v = float(np.max([y_true.max(), rf_pred_arr.max(), gnn_pred_arr.max()]))
+        plt.plot([min_v, max_v], [min_v, max_v], 'k--', linewidth=1.2, label='y = x')
+
+        plt.xlabel('True PAMPA')
+        plt.ylabel('Predicted PAMPA')
+        plt.title('True vs Predicted (PAMPA)')
+        plt.legend()
+        plt.tight_layout()
+
+        if plot_path:
+            plt.savefig(plot_path, dpi=200)
+
+        if show_plot:
+            plt.show()
+        else:
+            plt.close()
 
     return results
 
