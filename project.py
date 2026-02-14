@@ -90,7 +90,7 @@ if 'Ipc' in features_from_table.columns:
     print(f"After log transform: [{new_min:.2f}, {new_max:.2f}]")
 
 # Create train/test split (80/20) respecting Tanimoto groups
-train_test_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
+train_test_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=PROJECT_SEED)
 [(train_and_val_index, test_index)] = train_test_split.split(
     features_from_table,
     table_first_round_molecules['Class_Label'],
@@ -115,7 +115,7 @@ if len(rows_to_move) > 0:
     test_index.sort()  # allowing rows without label for the test dataset
 
 # Use this train/val split for training the GNN.
-train_val_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
+train_val_split = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=PROJECT_SEED)
 [(train_index, val_index)] = train_val_split.split(
     features_from_table.iloc[train_and_val_index],
     table_first_round_molecules['Class_Label'].iloc[train_and_val_index],
@@ -138,7 +138,7 @@ train_cv_folds = create_tanimoto_kfold_partition(
     y=y_train_subset,
     groups=groups_train_subset,
     n_splits=5,
-    random_state=0
+    random_state=PROJECT_SEED
 )
 
 # Train and evaluate Random Forest with 5-fold CV
