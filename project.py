@@ -206,6 +206,10 @@ test_only_with_labels_indices = [
 ]
 evaluation_dataset = test_dataset[test_only_with_labels_indices]
 
+print("RF labeled test size:", int(labeled_mask.sum()))
+print("GNN evaluation_dataset size:", len(evaluation_dataset))
+
+
 # Report proportion of positive labels (with threshold -6.0)
 full_positive_prop = (table_first_round_molecules['Class_Label'] >= BINARY_CLASSIFICATION_THRESHOLD).mean()
 train_positive_prop = (table_first_round_molecules['Class_Label'].iloc[train_index] >= BINARY_CLASSIFICATION_THRESHOLD).mean()
@@ -337,7 +341,7 @@ def plot_confusion_matrix(loader):
     all_preds = torch.cat(all_preds).numpy()
     all_labels = torch.cat(all_labels).numpy()
 
-    cm = confusion_matrix(all_labels, all_preds)
+    cm = confusion_matrix(all_labels, all_preds, labels=[False, True])
     plt.figure(figsize=(6, 5))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False)
     plt.xlabel('Predicted Label')
