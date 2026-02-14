@@ -133,6 +133,12 @@ groups_train_subset = groups[train_and_val_index]
 X_test_subset = features_from_table.iloc[test_index]
 y_test_subset = table_first_round_molecules['Class_Label'].iloc[test_index]
 
+labeled_mask = y_test_subset.notna()
+X_test_subset_labeled = X_test_subset.loc[labeled_mask]
+y_test_subset_labeled = y_test_subset.loc[labeled_mask]
+
+print(f"RF confusion matrix: using {labeled_mask.sum()}/{len(labeled_mask)} labeled test samples")
+
 train_cv_folds = create_tanimoto_kfold_partition(
     X=X_train_subset,
     y=y_train_subset,
@@ -162,7 +168,7 @@ def plot_confusion_matrix_for_rforest(model, X_test, y_test):
     all_preds = model.predict(X_test)
     true_binary = (y_test >= BINARY_CLASSIFICATION_THRESHOLD)
     pred_binary = (all_preds >= BINARY_CLASSIFICATION_THRESHOLD)
-    cm = confusion_matrix(true_binary, pred_binary)
+    cm = confusion_matrix(true_binary, pred_binary, labels=[False, True])
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False)
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
@@ -170,11 +176,7 @@ def plot_confusion_matrix_for_rforest(model, X_test, y_test):
     plt.savefig("confusion_matrix_random_forest.png")
     plt.show()
 
-plot_confusion_matrix_for_rforest(
-    best_random_forest_model,
-    X_test_subset,
-    y_test_subset
-)
+plot_confusion_matrix_for_rforest(best_random_forest_model, X_test_subset_labeled, y_test_subset_labeled)
 
 """
 ===================== GRAPH CONVOLUTION NETWORK =====================
