@@ -1,10 +1,10 @@
 import pandas as pd
-import numpy as np
-import ast
 
 
 def read_file_and_add_Class_Label(csv_path='CycPeptMPDB_First30.csv'):
     df = pd.read_csv(csv_path, sep=",")
+    # drop rows with invalid permeability values (-10)
+    df = df[df['Permeability'] != -10]
     threshold = -6.0
     # If Permeability is greater than -6, it's 1 (Active), otherwise 0
     df['Class_Label'] = df['PAMPA']#.apply(lambda x: 1 if x > threshold else 0)
