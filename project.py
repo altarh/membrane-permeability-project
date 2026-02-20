@@ -359,10 +359,11 @@ plot_confusion_matrix(evaluation_loader)
 from compare_models import full_comparison_pipeline, save_comparison_results
 
 all_results = full_comparison_pipeline(
-    csv_path='CycPeptMPDB_Peptide_All.csv',
+    df=table_first_round_molecules,
+    features_encoded=features_from_table,
+    dataset=dataset,
     rf_model=best_random_forest_model,
     gnn_model=model,
-    train_indices=train_index,
     test_indices=test_index,
     threshold=BINARY_CLASSIFICATION_THRESHOLD,
     device=device
