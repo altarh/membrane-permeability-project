@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch
+from scipy.stats import pearsonr
 from sklearn.metrics import (
     accuracy_score, mean_absolute_error, mean_squared_error,
     precision_score, r2_score, recall_score, f1_score, confusion_matrix,
@@ -63,15 +64,18 @@ def _results_table(metrics_by_model, columns):
 def calculate_metrics(y_true, y_pred, threshold=DEFAULT_THRESHOLD):
     y_true, y_pred = _clean_targets(y_true, y_pred)
     if y_true.size == 0:
-        return dict(r2=np.nan, mae=np.nan, mse=np.nan, rmse=np.nan,
+        return dict(r2=np.nan, pearson_r=np.nan, mae=np.nan, mse=np.nan, rmse=np.nan,
                     accuracy=np.nan, n_samples=0)
 
     mse = mean_squared_error(y_true, y_pred)
     true_bin = (y_true >= threshold).astype(int)
     pred_bin = (y_pred >= threshold).astype(int)
 
+    r, _ = pearsonr(y_true, y_pred)
+
     return dict(
         r2=r2_score(y_true, y_pred),
+        pearson_r=r,
         mae=mean_absolute_error(y_true, y_pred),
         mse=mse,
         rmse=np.sqrt(mse),
@@ -134,8 +138,8 @@ def _plot_true_vs_pred(y_true, predictions, label_name, path, show):
 # Comparison functions (ordered by call sequence in full_comparison_pipeline)
 # ---------------------------------------------------------------------------
 
-REGRESSION_COLS = ['r2', 'mae', 'mse', 'rmse', 'accuracy', 'n_samples']
-REGRESSION_RENAME = dict(r2='R2', mae='MAE', mse='MSE', rmse='RMSE',
+REGRESSION_COLS = ['r2', 'pearson_r', 'mae', 'mse', 'rmse', 'accuracy', 'n_samples']
+REGRESSION_RENAME = dict(r2='R2', pearson_r='Pearson_r', mae='MAE', mse='MSE', rmse='RMSE',
                          accuracy='Accuracy', n_samples='N_Samples')
 
 
